@@ -1,20 +1,33 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # xmake getter
 # usage: bash <(curl -s <my location>) [[mirror:]branch] [commit/__install_only__]
 
 set -o pipefail
 
-if [ 0 -ne "$(id -u)" ]
-then
-    sudoprefix=sudo
+# has sudo?
+if [ 0 -ne "$(id -u)" ]; then
+    if sudo --version >/dev/null 2>&1
+    then
+        sudoprefix=sudo
+    else
+        sudoprefix=
+    fi
 else
     sudoprefix=
 fi
 
-tmpdir=/tmp/.xmake_getter$$
+# make tmpdir
+if [ -z "$TMPDIR" ]; then
+    tmpdir=/tmp/.xmake_getter$$
+else
+    tmpdir=$TMPDIR/.xmake_getter$$
+fi
+if [ -d $tmpdir ]; then
+    rm -rf $tmpdir
+fi
 
-remote_get_content(){
+remote_get_content() {
     if curl --version >/dev/null 2>&1
     then
         curl -fsSL "$1"
@@ -46,11 +59,6 @@ echo '     >  <  | \__/ | /_| |   <  ___/             '
 echo '    /_/\_\_|_|  |_|\__ \|_|\_\____| getter      '
 echo '                                                '
 
-if [ 'x__local__' != "x$1" ]
-then
-    brew --version >/dev/null 2>&1 && brew install --HEAD xmake && xmake --version && exit
-fi
-
 my_exit(){
     rv=$?
     if [ "x$1" != x ]
@@ -81,17 +89,17 @@ test_tools()
 }
 install_tools()
 {
-    { apt-get --version >/dev/null 2>&1 && $sudoprefix apt-get install -y git build-essential libreadline-dev ccache; } ||
+    { apt --version >/dev/null 2>&1 && $sudoprefix apt install -y git build-essential libreadline-dev ccache; } ||
     { yum --version >/dev/null 2>&1 && $sudoprefix yum install -y git readline-devel ccache && $sudoprefix yum groupinstall -y 'Development Tools'; } ||
     { zypper --version >/dev/null 2>&1 && $sudoprefix zypper --non-interactive install git readline-devel ccache && $sudoprefix zypper --non-interactive install -t pattern devel_C_C++; } ||
-    { pacman -V >/dev/null 2>&1 && $sudoprefix pacman -S --noconfirm --needed git base-devel ccache; }
+    { pacman -V >/dev/null 2>&1 && $sudoprefix pacman -S --noconfirm --needed git base-devel ccache; } ||
+    { pkg list-installed >/dev/null 2>&1 && $sudoprefix pkg install -y git getconf build-essential readline ccache; } 
 }
 test_tools || { install_tools && test_tools; } || my_exit "$(echo -e 'Dependencies Installation Fail\nThe getter currently only support these package managers\n\t* apt\n\t* yum\n\t* zypper\n\t* pacman\nPlease install following dependencies manually:\n\t* git\n\t* build essential like `make`, `gcc`, etc\n\t* libreadline-dev (readline-devel)\n\t* ccache (optional)')" 1
 branch=master
 mirror=tboox
 IFS=':'
-if [ x != "x$1" ]
-then
+if [ x != "x$1" ]; then
     brancharr=($1)
     if [ ${#brancharr[@]} -eq 1 ]
     then
@@ -105,20 +113,25 @@ then
     echo "Branch: $branch"
 fi
 projectdir=$tmpdir
-if [ 'x__local__' != "x$branch" ]
-then
-    git clone --depth=50 -b "$branch" "https://github.com/$mirror/xmake.git" $projectdir || my_exit "$(echo -e 'Clone Fail\nCheck your network or branch name')"
-    if [ x != "x$2" ]
-    then
+if [ 'x__local__' != "x$branch" ]; then
+    if [ x != "x$2" ]; then
+        git clone --depth=50 -b "$branch" "https://github.com/$mirror/xmake.git" --recursive $projectdir || my_exit "$(echo -e 'Clone Fail\nCheck your network or branch name')"
         cd $projectdir || my_exit 'Chdir Error'
         git checkout -qf "$2"
         cd - || my_exit 'Chdir Error'
+    else 
+        git clone --depth=1 -b "$branch" "https://github.com/$mirror/xmake.git" --recursive $projectdir || my_exit "$(echo -e 'Clone Fail\nCheck your network or branch name')"
     fi
 else
-    projectdir=`pwd`
+    if [ -d '.git' ]; then
+        git submodule update --init --recursive
+    fi
+    cp -r . $projectdir
+    cd $projectdir || my_exit 'Chdir Error'
 fi
-if [ 'x__install_only__' != "x$2" ]
-then
+
+# do build
+if [ 'x__install_only__' != "x$2" ]; then
     make -C $projectdir --no-print-directory build 
     rv=$?
     if [ $rv -ne 0 ]
@@ -128,13 +141,16 @@ then
     fi
 fi
 
-if [ "$prefix" = "" ]
-then
+# make bytecodes
+export XMAKE_PROGRAM_DIR=$projectdir/xmake
+$projectdir/core/src/demo/demo.b l -v private.utils.bcsave --rootname='@programdir' -x 'scripts/**|templates/**' $projectdir/xmake || my_exit 'generate bytecode failed!'
+export XMAKE_PROGRAM_DIR=
+
+# do install
+if [ "$prefix" = "" ]; then
     prefix=~/.local
 fi
-
-if [ "x$prefix" != x ]
-then
+if [ "x$prefix" != x ]; then
     make -C $projectdir --no-print-directory install prefix="$prefix"|| my_exit 'Install Fail'
 else
     $sudoprefix make -C $projectdir --no-print-directory install || my_exit 'Install Fail'
@@ -147,11 +163,46 @@ install_profile()
 {
     if [ ! -d ~/.xmake ]; then mkdir ~/.xmake; fi
     echo "export PATH=$prefix/bin:\$PATH" > ~/.xmake/profile
+    echo '
+if   [[ "$SHELL" = */zsh ]]; then
+    # zsh parameter completion for xmake
+
+    _xmake_zsh_complete() 
+    {
+    local completions=("$(XMAKE_SKIP_HISTORY=1 xmake lua private.utils.complete 0 nospace "$words")")
+
+    reply=( "${(ps:\n:)completions}" )
+    }
+
+    compctl -f -S "" -K _xmake_zsh_complete xmake
+
+elif [[ "$SHELL" = */bash ]]; then
+    # bash parameter completion for xmake
+
+    _xmake_bash_complete()
+    {
+    local word=${COMP_WORDS[COMP_CWORD]}
+
+    local completions
+    completions="$(XMAKE_SKIP_HISTORY=1 xmake lua private.utils.complete "${COMP_POINT}" "${COMP_LINE}" 2>/dev/null)"
+    if [ $? -ne 0 ]; then
+        completions=""
+    fi
+
+    COMPREPLY=( $(compgen -W "$completions" -- "$word") )
+    }
+
+    complete -o default -o nospace -F _xmake_bash_complete xmake
+
+fi
+' >> ~/.xmake/profile
+
     if   [[ "$SHELL" = */zsh ]]; then write_profile ~/.zshrc
     elif [[ "$SHELL" = */ksh ]]; then write_profile ~/.kshrc
     elif [[ "$SHELL" = */bash ]]; then write_profile ~/.bashrc
+    else write_profile ~/.profile 
     fi
-    write_profile ~/.bash_profile 
+    
 }
 install_profile
 if xmake --version >/dev/null 2>&1; then xmake --version; else

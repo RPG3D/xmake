@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -42,7 +38,6 @@ end
 
 -- try running 
 function _try_running(...)
-
     local argv = {...}
     local errors = nil
     return try { function () os.runv(unpack(argv)); return true end, catch { function (errs) errors = (errs or ""):trim() end }}, errors
@@ -52,8 +47,23 @@ end
 function _check_from_arglist(flags, opt, islinker)
 
     -- check for the builtin flags
-    local builtin_flags = {["-code"] = true, ["--gpu-code"] = true, ["-gencode"] = true, ["--generate-code"] = true, ["-arch"] = true, ["--gpu-architecture"] = true}
+    local builtin_flags = {["-code"] = true, 
+                           ["--gpu-code"] = true, 
+                           ["-gencode"] = true, 
+                           ["--generate-code"] = true, 
+                           ["-arch"] = true, 
+                           ["--gpu-architecture"] = true, 
+                           ["-cudart=none"] = true, 
+                           ["--cudart=none"] = true}
     if builtin_flags[flags[1]] then
+        return true
+    end
+
+    -- check for the builtin flag=value
+    local cudart_flags = {none = true, shared = true, static = true}
+    local builtin_flags_pair = {["-cudart"] = cudart_flags, 
+                                ["--cudart"] = cudart_flags}
+    if #flags > 1 and builtin_flags_pair[flags[1]] and builtin_flags_pair[flags[1]][flags[2]] then
         return true
     end
 
@@ -103,12 +113,16 @@ function _check_try_running(flags, opt, islinker)
     end
 
     -- check flags
-    return _try_running(opt.program, table.join(flags, "-o", os.nuldev(), sourcefile))
+    if islinker then
+        return _try_running(opt.program, table.join(flags, "-o", os.nuldev(), sourcefile))
+    else
+        return _try_running(opt.program, table.join(flags, "-c", "-o", os.nuldev(), sourcefile))
+    end
 end
 
 -- has_flags(flags)?
 -- 
--- @param opt   the argument options, .e.g {toolname = "", program = "", programver = "", toolkind = "cu"}
+-- @param opt   the argument options, e.g. {toolname = "", program = "", programver = "", toolkind = "cu"}
 --
 -- @return      true or false
 --

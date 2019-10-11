@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -52,9 +48,6 @@ rule("wdk.man")
         
         -- save ctrpp
         target:data_set("wdk.ctrpp", ctrpp)
-
-        -- save output directory
-        target:data_set("wdk.ctrpp.outputdir", path.join(config.buildir(), ".wdk", "man", config.get("mode") or "generic", config.get("arch") or os.arch(), target:name()))
     end)
 
     -- before build file
@@ -69,7 +62,7 @@ rule("wdk.man")
         local ctrpp = target:data("wdk.ctrpp")
 
         -- get output directory
-        local outputdir = target:data("wdk.ctrpp.outputdir")
+        local outputdir = path.join(target:autogendir(), "rules", "wdk", "man")
 
         -- init args
         local args = {sourcefile}
@@ -87,7 +80,6 @@ rule("wdk.man")
         if headerfile then
             table.insert(args, "-o")
             table.insert(args, headerfile)
-            target:data_add("wdk.cleanfiles", headerfile)
         else
             raise("please call `set_values(\"wdk.man.header\", \"header.h\")` to set the provider header file name!")
         end
@@ -105,7 +97,6 @@ rule("wdk.man")
         if counter_headerfile then
             table.insert(args, "-ch")
             table.insert(args, counter_headerfile)
-            target:data_add("wdk.cleanfiles", counter_headerfile)
         end
 
         -- add resource file
@@ -114,7 +105,6 @@ rule("wdk.man")
         if resourcefile then
             table.insert(args, "-rc")
             table.insert(args, resourcefile)
-            target:data_add("wdk.cleanfiles", resourcefile)
         end
 
         -- need build this object?

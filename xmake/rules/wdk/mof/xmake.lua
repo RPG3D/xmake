@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -65,9 +61,6 @@ rule("wdk.mof")
         -- save mofcomp and wmimofck
         target:data_set("wdk.mofcomp", mofcomp)
         target:data_set("wdk.wmimofck", wmimofck)
-
-        -- save output directory
-        target:data_set("wdk.mof.outputdir", path.join(config.buildir(), ".wdk", "mof", config.get("mode") or "generic", config.get("arch") or os.arch(), target:name()))
     end)
 
     -- before build file
@@ -85,7 +78,7 @@ rule("wdk.mof")
         local wmimofck = target:data("wdk.wmimofck")
 
         -- get output directory
-        local outputdir = target:data("wdk.mof.outputdir")
+        local outputdir = path.join(target:autogendir(), "rules", "wdk", "mof")
 
         -- add includedirs
         target:add("includedirs", outputdir)
@@ -102,10 +95,6 @@ rule("wdk.mof")
         local targetfile_bmf     = path.join(outputdir, path.basename(sourcefile) .. ".bmf")
         local outputdir_htm      = path.join(outputdir, "htm")
         local targetfile_vbs     = path.join(outputdir, path.basename(sourcefile) .. ".vbs")
-
-        -- add clean files
-        target:data_add("wdk.cleanfiles", {headerfile, sourcefile_mof, targetfile_mfl, targetfile_mof})
-        target:data_add("wdk.cleanfiles", {targetfile_mfl_mof, targetfile_bmf, outputdir_htm, targetfile_vbs})
 
         -- need build this object?
         local dependfile = target:dependfile(headerfile)

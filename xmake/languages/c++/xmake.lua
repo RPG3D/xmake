@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -26,7 +22,7 @@
 language("c++")
 
     -- set source file kinds
-    set_sourcekinds {cc = ".c", cxx = {".cc", ".cpp", ".cxx"}}   
+    set_sourcekinds {cc = ".c", cxx = {".cpp", ".cc", ".cxx"}}   
 
     -- set source file flags
     set_sourceflags {cc = {"cflags", "cxflags"}, cxx = {"cxxflags", "cxflags"}}   
@@ -42,6 +38,9 @@ language("c++")
 
     -- set mixing kinds
     set_mixingkinds("cc", "cxx", "as", "mrc")
+
+    -- add rules
+    add_rules("c++")
 
     -- on load
     on_load("load")
@@ -161,11 +160,13 @@ language("c++")
                     {category = "Cross Complation Configuration/Compiler Configuration"                             }
                 ,   {nil, "cc",            "kv", nil,          "The C Compiler"                                     }
                 ,   {nil, "cxx",           "kv", nil,          "The C++ Compiler"                                   }
+                ,   {nil, "cpp",           "kv", nil,          "The C Preprocessor"                                 }
 
                 ,   {category = "Cross Complation Configuration/Linker Configuration"                               }
                 ,   {nil, "ld",            "kv", nil,          "The Linker"                                         }
                 ,   {nil, "ar",            "kv", nil,          "The Static Library Linker"                          }
                 ,   {nil, "sh",            "kv", nil,          "The Shared Library Linker"                          }
+                ,   {nil, "ranlib",        "kv", nil,          "The Static Library Index Generator"                 }
 
                 ,   {category = "Cross Complation Configuration/Compiler Flags Configuration"                       }
                 ,   {nil, "cflags",        "kv", nil,          "The C Compiler Flags"                               }

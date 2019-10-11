@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,7 +26,7 @@ import("lib.detect.pkg_config")
 -- find package from the system directories
 --
 -- @param name  the package name
--- @param opt   the options, .e.g {verbose = true, version = "1.12.x")
+-- @param opt   the options, e.g. {verbose = true, version = "1.12.x")
 --
 function main(name, opt)
        
@@ -72,14 +68,14 @@ function main(name, opt)
     local version = nil
     local links = table.wrap(opt.links)
     if #links == 0 then
-        pkginfo = pkg_config.info(name)
+        pkginfo = pkg_config.libinfo(name)
         if pkginfo then
             links = table.wrap(pkginfo.links)
             version = pkginfo.version
         end
     end
 
-    -- uses name as links directly .e.g libname.a
+    -- uses name as links directly e.g. libname.a
     if #links == 0 then
         links = table.wrap(name)
     end

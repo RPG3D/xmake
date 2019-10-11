@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -437,14 +433,14 @@ function option.find(argv, name, shortname)
         if nextvalue then return arg end
 
         -- --name=value?
-        if name and arg:startswith("--" .. name) then
+        if name and arg:startswith("--" .. name .. "=") then
                     
             -- get value
             local i = arg:find("=", 1, true)
             if i then return arg:sub(i + 1) end
 
         -- -shortname value?
-        elseif shortname and arg:startswith("-" .. shortname) then
+        elseif shortname and arg == ("-" .. shortname) then
  
             -- get value
             nextvalue = true
@@ -729,10 +725,10 @@ end
 
 -- get the boolean value
 function option.boolean(value)
-
     if type(value) == "string" then
-        if value == "true" or value == "yes" or value == "y" then value = true
-        elseif value == "false" or value == "no" or value == "n" then value = false
+        local v = value:lower()
+        if v == "true" or v == "yes" or v == "y" then value = true
+        elseif v == "false" or v == "no" or v == "n" then value = false
         end
     end
     return value
@@ -804,6 +800,37 @@ function option.defaults(task)
     return defaults
 end
 
+-- show update tips
+function option.show_update_tips()
+
+    -- show lastest version 
+    local versionfile = path.join(os.tmpdir(), "lastest_version")
+    if os.isfile(versionfile) then
+        local versioninfo = io.load(versionfile)
+        if versioninfo and versioninfo.version and semver.compare(versioninfo.version, xmake._VERSION_SHORT) > 0 then
+            local updatetips = nil
+            if os.host() == "windows" then
+                updatetips = string.format([[
+   ==========================================================================
+  | ${bright yellow}A new version of xmake is available!${clear}                                     |
+  |                                                                          |
+  | To update to the latest version ${bright}%s${clear}, run "xmake update".              |
+   ==========================================================================
+]], versioninfo.version)
+            else
+                updatetips = string.format([[
+  ╔════════════════════════════════════════════════════════════════════════════╗
+  ║ ${bright yellow}A new version of xmake is available!${clear}                                       ║
+  ║                                                                            ║
+  ║ To update to the latest version ${bright}%s${clear}, run "xmake update".                ║
+  ╚════════════════════════════════════════════════════════════════════════════╝
+]], versioninfo.version)
+            end
+            io.print(colors.translate(updatetips))
+        end
+    end
+end
+
 -- show logo
 function option.show_logo()
 
@@ -836,16 +863,19 @@ function option.show_logo()
     end
 
     -- show logo
-    print(colors.translate(logo))
+    io.print(colors.translate(logo))
 
     -- define footer
     local footer = [[
-    ${point_right}  ${bright}Manual${clear}: ${underline}https://xmake.io/#/home${clear}
-    ${pray}  ${bright}Donate${clear}: ${underline}https://xmake.io/pages/donation.html#donate${clear}
+    ${point_right}  ${bright}Manual${clear}: ${underline}https://xmake.io/#/getting_started${clear}
+    ${pray}  ${bright}Donate${clear}: ${underline}https://xmake.io/#/sponsor${clear}
     ]]
 
     -- show footer
-    print(colors.translate(footer))
+    io.print(colors.translate(footer))
+
+    -- show update tips
+    option.show_update_tips()
 end
 
 -- show the menu 
@@ -867,12 +897,12 @@ function option.show_menu(task)
 
     -- print title
     if menu.title then
-        print(colors.translate(menu.title))
+        io.print(colors.translate(menu.title))
     end
 
     -- print copyright
     if menu.copyright then
-        print(colors.translate(menu.copyright))
+        io.print(colors.translate(menu.copyright))
     end
 
     -- show logo
@@ -880,14 +910,14 @@ function option.show_menu(task)
 
     -- print usage
     if taskmenu.usage then
-        print("")
-        print(colors.translate("${bright}Usage: $${default cyan}" .. taskmenu.usage))
+        io.print("")
+        io.print(colors.translate("${bright}Usage: $${default color.menu.usage}" .. taskmenu.usage .. "${clear}"))
     end
 
     -- print description
     if taskmenu.description then
-        print("")
-        print(taskmenu.description)
+        io.print("")
+        io.print(taskmenu.description)
     end
 
     -- print options
@@ -909,12 +939,12 @@ function option.show_main()
 
     -- print title
     if menu.title then
-        print(colors.translate(menu.title))
+        io.print(colors.translate(menu.title))
     end
 
     -- print copyright
     if menu.copyright then
-        print(colors.translate(menu.copyright))
+        io.print(colors.translate(menu.copyright))
     end
 
     -- show logo
@@ -922,14 +952,14 @@ function option.show_main()
 
     -- print usage
     if main.usage then
-        print("")
-        print(colors.translate("${bright}Usage: $${default cyan}" .. main.usage))
+        io.print("")
+        io.print(colors.translate("${bright}Usage: $${default color.menu.usage}" .. main.usage .. "${clear}"))
     end
 
     -- print description
     if main.description then
-        print("")
-        print(main.description)
+        io.print("")
+        io.print(main.description)
     end
 
     -- print tasks
@@ -972,8 +1002,8 @@ function option.show_main()
             assert(categoryname and categorytask)
 
             -- print category name
-            print("")
-            print(colors.translate(string.format("${bright}%s%ss: ", string.sub(categoryname, 1, 1):upper(), string.sub(categoryname, 2))))
+            io.print("")
+            io.print(colors.translate(string.format("${bright}%s%ss: ", string.sub(categoryname, 1, 1):upper(), string.sub(categoryname, 2))))
             
             -- the padding spaces
             local padding = 42
@@ -995,13 +1025,13 @@ function option.show_main()
                 -- append the task name
                 taskline = taskline .. taskname
 
-                -- append color
-                taskline = "${magenta}" .. taskline .. "${clear}"
-
                 -- append spaces
                 for i = (#taskline), padding do
                     taskline = taskline .. " "
                 end
+
+                -- append color
+                taskline = colors.translate("${color.menu.main.task.name}" .. taskline .. "${clear}")
 
                 -- append the task description
                 if taskinfo.description then
@@ -1009,7 +1039,7 @@ function option.show_main()
                 end
 
                 -- print task line
-                print(colors.translate(taskline))
+                io.print(colors.translate(taskline))
             end
         end
     end
@@ -1027,8 +1057,8 @@ function option.show_options(options)
     assert(options)
 
     -- print header
-    print("")
-    print(colors.translate("${bright}Options: "))
+    io.print("")
+    io.print(colors.translate("${bright}Options: "))
     
     -- the padding spaces
     local padding = 42
@@ -1088,7 +1118,7 @@ function option.show_options(options)
         end
 
         -- append color
-        option_info = "${green}" .. option_info .. "${clear}"
+        option_info = colors.translate("${color.menu.option.name}" .. option_info .. "${clear}")
 
         -- get width of console
         local console_width = os.getwinsize()["width"]
@@ -1115,7 +1145,7 @@ function option.show_options(options)
         end
 
         -- print option info
-        print(colors.translate(option_info))
+        io.print(colors.translate(option_info))
 
         -- print more description if exists
         for i = 6, 64 do
@@ -1139,7 +1169,7 @@ function option.show_options(options)
                 end
 
                 -- print this description
-                print(option._inwidth_append(spaces, description, padding + 1, console_width))
+                io.print(option._inwidth_append(spaces, description, padding + 1, console_width))
 
             -- the description is table?
             elseif type(description) == "table" then
@@ -1154,7 +1184,7 @@ function option.show_options(options)
                     end
 
                     -- print this description
-                    print(option._inwidth_append(spaces, v, padding + 1, console_width))
+                    io.print(option._inwidth_append(spaces, v, padding + 1, console_width))
                 end
             end
         end
@@ -1175,7 +1205,7 @@ function option.show_options(options)
                 end
 
                 -- print this value
-                print(option._inwidth_append(spaces, "    - " .. tostring(value), padding + 1, console_width))
+                io.print(option._inwidth_append(spaces, "    - " .. tostring(value), padding + 1, console_width))
             end
         end
     end

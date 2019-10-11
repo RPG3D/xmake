@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -48,7 +44,7 @@ function main()
             uninstall(targetname)
 
             -- trace
-            cprint("${bright}uninstall ok!${clear}${ok_hand}")
+            cprint("${bright}uninstall ok!${clear}")
         end,
 
         catch
@@ -66,7 +62,7 @@ function main()
                             uninstall(targetname)
 
                             -- trace
-                            cprint("${bright}uninstall ok!${clear}${ok_hand}")
+                            cprint("${bright}uninstall ok!${clear}")
 
                             -- ok
                             return true
@@ -86,30 +82,15 @@ function main()
                 -- continue to uninstall with administrator permission?
                 if sudo.has() then
 
-                    -- get confirm
-                    local confirm = option.get("yes")
-                    if confirm == nil then
-
-                        -- show tips
-                        cprint("${bright color.warning}note: ${clear}try continue to uninstall with administrator permission again?")
-                        cprint("please input: y (y/n)")
-
-                        -- get answer
-                        io.flush()
-                        local answer = io.read()
-                        if answer == 'y' or answer == '' then
-                            confirm = true
-                        end
-                    end
-
                     -- confirm to uninstall?
+                    local confirm = utils.confirm({default = true, description = "try continue to uninstall with administrator permission again"})
                     if confirm then
 
                         -- uninstall target with administrator permission
                         sudo.runl(path.join(os.scriptdir(), "uninstall_admin.lua"), {targetname or "__all", option.get("installdir"), option.get("prefix")})
 
                         -- trace
-                        cprint("${bright}uninstall ok!${clear}${ok_hand}")
+                        cprint("${bright}uninstall ok!${clear}")
                     end
                 end
             end

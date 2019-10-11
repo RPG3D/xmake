@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -22,70 +18,117 @@
 -- @file        autoconf.lua
 --
 
+-- imports
+import("core.project.config")
+
 -- get configs
 function _get_configs(package, configs)
+
+    -- add prefix
     local configs = configs or {}
     table.insert(configs, "--prefix=" .. package:installdir())
+
+    -- add host for cross-complation
+    if not configs.host and not package:is_plat(os.host()) then
+        if package:is_plat("iphoneos") then
+            local triples = 
+            { 
+                arm64  = "aarch64-apple-darwin",
+                arm64e = "aarch64-apple-darwin",
+                armv7  = "armv7-apple-darwin",
+                armv7s = "armv7s-apple-darwin",
+                i386   = "i386-apple-darwin",
+                x86_64 = "x86_64-apple-darwin"
+            }
+            table.insert(configs, "--host=" .. (triples[package:arch()] or triples.arm64))
+        elseif package:is_plat("android") then
+            -- @see https://developer.android.com/ndk/guides/other_build_systems#autoconf
+            local triples = 
+            {
+                ["armv5te"]     = "arm-linux-androideabi",
+                ["armv7-a"]     = "arm-linux-androideabi",
+                ["arm64-v8a"]   = "aarch64-linux-android",
+                i386            = "i686-linux-android",
+                x86_64          = "x86_64-linux-android",
+                mips            = "mips-linux-android",
+                mips64          = "mips64-linux-android"
+            }
+            table.insert(configs, "--host=" .. (triples[package:arch()] or triples["armv7-a"]))
+        elseif package:is_plat("mingw") then
+            local triples = 
+            { 
+                i386   = "i686-w64-mingw32",
+                x86_64 = "x86_64-w64-mingw32"
+            }
+            table.insert(configs, "--host=" .. (triples[package:arch()] or triples.i386))
+        else
+            raise("autoconf: unknown platform(%s)!", package:plat())
+        end
+    end
     return configs
 end
 
--- enter environments
-function _enter_envs(package)
-    
-    -- get old environments
-    local envs           = {}
-    envs.CFLAGS          = os.getenv("CFLAGS")
-    envs.CXXFLAGS        = os.getenv("CXXFLAGS")
-    envs.ASFLAGS         = os.getenv("ASFLAGS")
-    envs.ACLOCAL_PATH    = os.getenv("ACLOCAL_PATH")
-    envs.PKG_CONFIG_PATH = os.getenv("PKG_CONFIG_PATH")
-
-    -- set new environments
-    local cflags   = package:config("cflags")
-    local cxflags  = package:config("cxflags")
-    local cxxflags = package:config("cxxflags")
-    local asflags  = package:config("asflags")
-    if package:plat() == "windows" then
-        local vs_runtime = package:config("vs_runtime")
-        if vs_runtime then
-            cxflags = (cxflags or "") .. " /" .. vs_runtime .. (package:debug() and "d" or "")
+-- get the build environments
+function buildenvs(package)
+    local envs = {}
+    if package:is_plat(os.host()) then
+        local cflags   = table.join(table.wrap(package:config("cxflags")), package:config("cflags"))
+        local cxxflags = table.join(table.wrap(package:config("cxflags")), package:config("cxxflags"))
+        envs.CFLAGS    = table.concat(cflags, ' ')
+        envs.CXXFLAGS  = table.concat(cxxflags, ' ')
+        envs.ASFLAGS   = table.concat(table.wrap(package:config("asflags")), ' ')
+    else
+        local cflags   = table.join(table.wrap(package:build_getenv("cxflags")), package:build_getenv("cflags"))
+        local cxxflags = table.join(table.wrap(package:build_getenv("cxflags")), package:build_getenv("cxxflags"))
+        envs.CC        = package:build_getenv("cc")
+        envs.AS        = package:build_getenv("as")
+        envs.AR        = package:build_getenv("ar")
+        envs.LD        = package:build_getenv("ld")
+        envs.LDSHARED  = package:build_getenv("sh")
+        envs.CPP       = package:build_getenv("cpp")
+        envs.RANLIB    = package:build_getenv("ranlib")
+        envs.CFLAGS    = table.concat(cflags, ' ')
+        envs.CXXFLAGS  = table.concat(cxxflags, ' ')
+        envs.ASFLAGS   = table.concat(table.wrap(package:build_getenv("asflags")), ' ')
+        envs.ARFLAGS   = table.concat(table.wrap(package:build_getenv("arflags")), ' ')
+        envs.LDFLAGS   = table.concat(table.wrap(package:build_getenv("ldflags")), ' ')
+        envs.SHFLAGS   = table.concat(table.wrap(package:build_getenv("shflags")), ' ')
+        if package:is_plat("mingw") then
+            -- fix linker error, @see https://github.com/xmake-io/xmake/issues/574
+            -- libtool: line 1855: lib: command not found
+            envs.ARFLAGS = nil
+            local ld = envs.LD
+            if ld then
+                if ld:endswith("x86_64-w64-mingw32-g++") then
+                    envs.LD = path.join(path.directory(ld), "x86_64-w64-mingw32-ld")
+                elseif ld:endswith("i686-w64-mingw32-g++") then
+                    envs.LD = path.join(path.directory(ld), "i686-w64-mingw32-ld")
+                end
+            end
         end
     end
-    if cflags then
-        os.addenv("CFLAGS", cflags)
-    end
-    if cxflags then
-        os.addenv("CFLAGS", cxflags)
-        os.addenv("CXXFLAGS", cxflags)
-    end
-    if cxxflags then
-        os.addenv("CXXFLAGS", cxxflags)
-    end
-    if asflags then
-        os.addenv("ASFLAGS", asflags)
-    end
+    local ACLOCAL_PATH = {}
+    local PKG_CONFIG_PATH = {}
     for _, dep in ipairs(package:orderdeps()) do
         local pkgconfig = path.join(dep:installdir(), "lib", "pkgconfig")
         if os.isdir(pkgconfig) then
-            os.addenv("PKG_CONFIG_PATH", pkgconfig)
+            table.insert(PKG_CONFIG_PATH, pkgconfig)
         end
         local aclocal = path.join(dep:installdir(), "share", "aclocal")
         if os.isdir(aclocal) then
-            os.addenv("ACLOCAL_PATH", aclocal)
+            table.insert(ACLOCAL_PATH, aclocal)
         end
     end
+    envs.ACLOCAL_PATH    = path.joinenv(ACLOCAL_PATH)
+    envs.PKG_CONFIG_PATH = path.joinenv(PKG_CONFIG_PATH)
     return envs
 end
 
--- leave environments
-function _leave_envs(package, envs)
-    for k, v in pairs(envs) do
-        os.setenv(k, v)
-    end
-end
+-- configure package
+function configure(package, configs, opt)
 
--- install package
-function install(package, configs)
+    -- init options
+    opt = opt or {}
 
     -- generate configure file
     if not os.isfile("configure") then
@@ -100,26 +143,26 @@ function install(package, configs)
     local argv = {}
     for name, value in pairs(_get_configs(package, configs)) do
         value = tostring(value):trim()
-        if type(name) == "number" then
-            if value ~= "" then
+        if value ~= "" then
+            if type(name) == "number" then
                 table.insert(argv, value)
+            else
+                table.insert(argv, "--" .. name .. "=" .. value)
             end
-        else
-            table.insert(argv, "--" .. name .. "=" .. value)
         end
     end
 
-    -- enter environments
-    local envs = _enter_envs(package)
+    -- do configure
+    os.vrunv("./configure", argv, {envs = opt.envs or buildenvs(package)})
+end
+
+-- install package
+function install(package, configs, opt)
 
     -- do configure
-    os.vrunv("./configure", argv)
+    configure(package, configs, opt)
 
     -- do make and install
-    os.vrun("make -j4")
-    os.vrun("make install")
-
-    -- leave environments
-    _leave_envs(package, envs)
+    os.vrun("make install -j4")
 end
 

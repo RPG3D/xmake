@@ -1,9 +1,9 @@
 -- disable jit compiler for redhat and centos
 local jit = true
-local autogendir = "src/autogen/$(plat)/jit/$(arch)"
+local autogendir = "autogen/$(plat)/jit/$(arch)"
 if os.isfile("/etc/redhat-release") then
     jit = false
-    autogendir = "src/autogen/$(plat)/nojit/$(arch)"
+    autogendir = "autogen/$(plat)/nojit/$(arch)"
 end
 
 -- add target
@@ -18,19 +18,17 @@ target("luajit")
     -- disable c99(/TP) for windows
     if is_plat("windows") then
         set_languages("c89")
-    else
-	set_languages("gnu99")
     end
 
     -- add header files
-    add_headerfiles("src/(*.h)")
+    add_headerfiles("luajit/src/(*.h)")
 
     -- add include directories
     add_includedirs(autogendir)
-    add_includedirs("src", {public = true})
+    add_includedirs("luajit/src", {public = true})
 
     -- add the common source files
-    add_files("src/*.c|ljamalg.c|luajit.c") 
+    add_files("luajit/src/*.c|ljamalg.c|luajit.c") 
     if is_plat("windows") then
         add_files(autogendir .. "/lj_vm.obj")
     else
@@ -42,5 +40,11 @@ target("luajit")
         add_defines("LUAJIT_DISABLE_JIT")
     end
 
+    -- enable lua5.2 compat, @see http://luajit.org/extensions.html
+    --[[
+    add_defines("LUAJIT_ENABLE_LUA52COMPAT")
+    if not is_plat("windows") then
+        add_cflags("-Wno-error=unused-function")
+    end]]
 
        

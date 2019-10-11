@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -25,12 +21,13 @@
 -- imports
 import("lib.detect.find_tool")
 import("lib.detect.find_file")
+import("lib.detect.pkg_config")
 import("package.manager.find_package")
 
 -- find package from the brew package manager
 --
 -- @param name  the package name, e.g. zlib, pcre/libpcre16
--- @param opt   the options, .e.g {verbose = true, version = "1.12.x")
+-- @param opt   the options, e.g. {verbose = true, version = "1.12.x")
 --
 function main(name, opt)
 
@@ -40,7 +37,7 @@ function main(name, opt)
         return 
     end
 
-    -- parse name, .e.g pcre/libpcre16
+    -- parse name, e.g. pcre/libpcre16
     local nameinfo = name:split('/')
     local pcname   = nameinfo[2] or nameinfo[1]
 
@@ -54,6 +51,15 @@ function main(name, opt)
     if pcfile then
         opt.configdirs = path.directory(pcfile)
         result = find_package("pkg_config::" .. pcname, opt)
+        if not result then
+            -- attempt to get includedir variable from pkg-config/xx.pc 
+            local varinfo = pkg_config.variables(pcname, "includedir", opt)
+            if varinfo.includedir then
+                result = result or {}
+                result.version = pkg_config.version(pcname, opt)
+                result.includedirs = varinfo.includedir
+            end
+        end
     end
 
     -- find package from xxx/lib, xxx/include

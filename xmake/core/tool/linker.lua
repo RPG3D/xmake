@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -43,7 +39,7 @@ local compiler  = require("tool/compiler")
 -- add flags from the platform 
 function linker:_add_flags_from_platform(flags, targetkind)
 
-    -- attempt to add special lanugage flags first for target kind, .e.g binary.go.gc-ldflags, static.dc-arflags
+    -- attempt to add special lanugage flags first for target kind, e.g. binary.go.gc-ldflags, static.dc-arflags
     if targetkind then
         local toolkind = self:kind()
         local toolname = self:name()
@@ -61,7 +57,7 @@ function linker:_add_flags_from_linker(flags)
     local toolkind = self:kind()
     for _, flagkind in ipairs(self:_flagkinds()) do
 
-        -- attempt to add special lanugage flags first, .e.g gc-ldflags, dc-arflags
+        -- attempt to add special lanugage flags first, e.g. gc-ldflags, dc-arflags
         table.join2(flags, self:get(toolkind .. 'flags') or self:get(flagkind))
     end
 end
@@ -84,9 +80,12 @@ function linker._load_tool(targetkind, sourcekinds, target)
         -- get program from target
         local program = nil
         if target then
-            local tools = target:get("tools")
-            if tools then
-                program = tools[_linkerinfo.linkerkind]
+            program = target:get("toolchain." .. _linkerinfo.linkerkind)
+            if not program then
+                local tools = target:get("tools") -- TODO: deprecated
+                if tools then
+                    program = tools[_linkerinfo.linkerkind]
+                end
             end
         end
 
@@ -136,7 +135,7 @@ function linker.load(targetkind, sourcekinds, target)
     local linkerinfo = linkerinfo_or_errors
 
     -- init cache key
-    local cachekey = linkerinfo.linkerkind .. (linkerinfo.program or "") .. (config.get("arch") or os.arch())
+    local cachekey = targetkind .. "_" .. linkerinfo.linkerkind .. (linkerinfo.program or "") .. (config.get("arch") or os.arch())
 
     -- get it directly from cache dirst
     builder._INSTANCES = builder._INSTANCES or {}
@@ -198,12 +197,12 @@ end
 -- link the target file
 function linker:link(objectfiles, targetfile, opt)
     opt = opt or {}
-    return sandbox.load(self:_tool().link, self:_tool(), table.wrap(objectfiles), self:_targetkind(), targetfile, opt.linkflags or self:linkflags(opt))
+    return sandbox.load(self:_tool().link, self:_tool(), table.wrap(objectfiles), self:_targetkind(), targetfile, opt.linkflags or self:linkflags(opt), opt)
 end
 
 -- get the link arguments list
 function linker:linkargv(objectfiles, targetfile, opt)
-    return self:_tool():linkargv(table.wrap(objectfiles), self:_targetkind(), targetfile, opt.linkflags or self:linkflags(opt))
+    return self:_tool():linkargv(table.wrap(objectfiles), self:_targetkind(), targetfile, opt.linkflags or self:linkflags(opt), opt)
 end
 
 -- get the link command
@@ -214,7 +213,7 @@ end
 -- get the link flags
 --
 -- @param opt   the argument options (contain all the linker attributes of target), 
---              .e.g {target = ..., targetkind = "static", configs = {ldflags = "", links = "", linkdirs = "", ...}}
+--              e.g. {target = ..., targetkind = "static", configs = {ldflags = "", links = "", linkdirs = "", ...}}
 --
 function linker:linkflags(opt)
 
@@ -245,12 +244,6 @@ function linker:linkflags(opt)
 
     -- add flags from the platform 
     self:_add_flags_from_platform(flags, targetkind)
-
-    --[[
-    -- add flags from the compiler 
-    if target then
-        self:_add_flags_from_compiler(flags, target, targetkind)
-    end]]
 
     -- add flags from the linker 
     self:_add_flags_from_linker(flags)

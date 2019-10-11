@@ -1,12 +1,8 @@
 --!The Make-like install Utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -115,6 +111,9 @@ function main(package)
 
     -- get working directory of this package
     local workdir = package:cachedir()
+
+    -- lock this package
+    package:lock()
 
     -- enter the working directory
     local oldir = nil
@@ -226,11 +225,12 @@ function main(package)
             function (errors)
 
                 -- show or save the last errors
+                local errorfile = path.join(package:installdir("logs"), "install.txt")
                 if errors then
                     if (option.get("verbose") or option.get("diagnosis")) then
                         cprint("${dim color.error}error: ${clear}%s", errors)
                     else
-                        io.writefile(path.join(package:installdir("logs"), "install.txt"), errors)
+                        io.writefile(errorfile, errors .. "\n")
                     end
                 end
 
@@ -249,11 +249,16 @@ function main(package)
                     if not os.isdir(installdir_failed) then
                         os.cp(installdir, installdir_failed)
                     end
+                    errorfile = path.join(installdir_failed, "logs", "install.txt")
                 end
                 os.tryrm(installdir)
 
                 -- failed
                 if not package:requireinfo().optional then
+                    if os.isfile(errorfile) then
+                        print("if you want to get verbose errors, please see:")
+                        cprint("  -> ${bright}%s${clear}", errorfile)
+                    end
                     raise("install failed!")
                 end
             end
@@ -265,6 +270,9 @@ function main(package)
     if os.emptydir(installdir) then
         os.tryrm(installdir)
     end
+
+    -- unlock this package
+    package:unlock()
 
     -- leave source codes directory
     os.cd(oldir)

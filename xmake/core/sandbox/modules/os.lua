@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -26,6 +22,7 @@
 local io        = require("base/io")
 local os        = require("base/os")
 local utils     = require("base/utils")
+local xmake     = require("base/xmake")
 local option    = require("base/option")
 local semver    = require("base/semver")
 local sandbox   = require("sandbox/sandbox")
@@ -53,8 +50,12 @@ sandbox_os.nuldev       = os.nuldev
 sandbox_os.getenv       = os.getenv
 sandbox_os.setenv       = os.setenv
 sandbox_os.addenv       = os.addenv
+sandbox_os.setenvp      = os.setenvp
+sandbox_os.addenvp      = os.addenvp
+sandbox_os.getenvs      = os.getenvs
 sandbox_os.pbpaste      = os.pbpaste
 sandbox_os.pbcopy       = os.pbcopy
+sandbox_os.cpuinfo      = os.cpuinfo
 sandbox_os.emptydir     = os.emptydir
 sandbox_os.filesize     = os.filesize
 sandbox_os.workingdir   = os.workingdir
@@ -62,7 +63,6 @@ sandbox_os.programdir   = os.programdir
 sandbox_os.programfile  = os.programfile
 sandbox_os.projectdir   = os.projectdir
 sandbox_os.projectfile  = os.projectfile
-sandbox_os.versioninfo  = os.versioninfo
 sandbox_os.getwinsize   = os.getwinsize
 sandbox_os.user_agent   = os.user_agent
 
@@ -329,7 +329,7 @@ function sandbox_os.vrunv(program, argv, opt)
 
     -- echo command
     if option.get("verbose") then
-        print(vformat(program), table.concat(argv, " "))
+        print(vformat(program) .. " " .. table.concat(argv, " "))
     end
 
     -- run it
@@ -349,7 +349,7 @@ function sandbox_os.iorun(cmd, ...)
         if #errors:trim() == 0 then
             errors = outdata or ""
         end
-        os.raise(errors)
+        os.raise({errors = errors, stderr = errdata, stdout = outdata})
     end
 
     -- ok
@@ -369,7 +369,7 @@ function sandbox_os.iorunv(program, argv, opt)
         if #errors:trim() == 0 then
             errors = outdata or ""
         end
-        os.raise(errors)
+        os.raise({errors = errors, stderr = errdata, stdout = outdata})
     end
 
     -- ok
@@ -397,7 +397,7 @@ function sandbox_os.execv(program, argv, opt)
 
     -- flush io buffer first for fixing redirect io output order
     --
-    -- .e.g 
+    -- e.g. 
     --
     -- xmake run > /tmp/a
     --   print("xxx1")
@@ -410,14 +410,16 @@ function sandbox_os.execv(program, argv, opt)
     io.flush()
 
     -- run it
+    opt = opt or {}
     local ok = os.execv(program, argv, opt)
-    if ok ~= 0 then
+    if ok ~= 0 and not opt.try then
         if argv ~= nil then
             os.raise("execv(%s %s) failed(%d)!", program, table.concat(argv, ' '), ok)
         else
             os.raise("execv(%s) failed(%d)!", program, ok)
         end
     end
+    return ok
 end
 
 -- match files or directories
@@ -482,19 +484,16 @@ end
 -- get xmake version
 function sandbox_os.xmakever()
 
-    -- get it from cache first
-    if sandbox_os._XMAKEVER ~= nil then
-        return sandbox_os._XMAKEVER 
+    -- fill cache
+    if sandbox_os._XMAKEVER == nil then
+        -- get xmakever
+        local xmakever = semver.new(xmake._VERSION_SHORT)
+        -- save to cache
+        sandbox_os._XMAKEVER = xmakever or false
     end
 
-    -- get xmakever
-    local xmakever = semver.new(xmake._VERSION_SHORT)
-
-    -- save to cache
-    os._XMAKEVER = xmakever or false
-
     -- done
-    return xmakever
+    return sandbox_os._XMAKEVER or nil
 end
 
 -- return module

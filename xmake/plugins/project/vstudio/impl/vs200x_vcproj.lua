@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -101,7 +97,7 @@ function _make_linkflags(target, vcprojdir)
         -- save flag
         table.insert(flags, flag)
     end
-    
+
     -- make flags string
     flags = os.args(flags)
 
@@ -118,20 +114,11 @@ function _make_header(vcprojfile, vsinfo, target)
     -- the target name
     local targetname = target:name()
 
-    -- the versions
-    local versions = 
-    {
-        vs2002 = '7.0'
-    ,   vs2003 = '7.1'
-    ,   vs2005 = '8.0'
-    ,   vs2008 = '9.0'
-    }
-
     -- make header
-    vcprojfile:print("<?xml version=\"1.0\" encoding=\"gb2312\"?>")
+    vcprojfile:print("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
     vcprojfile:enter("<VisualStudioProject")
         vcprojfile:print("ProjectType=\"Visual C++\"")
-        vcprojfile:print("Version=\"%s0\"", assert(versions["vs" .. vsinfo.vstudio_version]))
+        vcprojfile:print("Version=\"%s0\"", assert(vsinfo.project_version))
         vcprojfile:print("Name=\"%s\"", targetname)
         vcprojfile:print("ProjectGUID=\"{%s}\"", hash.uuid(targetname))
         vcprojfile:print("RootNamespace=\"%s\"", targetname)
@@ -165,7 +152,7 @@ end
 
 -- make VCCLCompilerTool
 --
--- .e.g
+-- e.g.
 --
 -- <Tool
 --      Name="VCCLCompilerTool"
@@ -201,7 +188,7 @@ end
 
 -- make VCLinkerTool
 --
--- .e.g
+-- e.g.
 -- <Tool
 --      Name="VCLinkerTool"
 --      AdditionalDependencies="xxx.lib"
@@ -264,8 +251,9 @@ function _make_configurations(vcprojfile, vsinfo, target, vcprojdir)
  
     -- save compiler flags
     local compflags=nil
-    for sourcekind, sourcebatch in pairs(target:sourcebatches()) do
-        if not sourcebatch.rulename then
+    for _, sourcebatch in pairs(target:sourcebatches()) do
+        local sourcekind = sourcebatch.sourcekind
+        if sourcekind then
             for _, sourcefile in ipairs(sourcebatch.sourcefiles) do
                 local flags = compiler.compflags(sourcefile, {target = target})
                 if sourcekind == "cc" or sourcekind == "cxx" then
@@ -406,7 +394,7 @@ end
 
 -- make cxfile
 --
--- .e.g
+-- e.g.
 --  <File
 --      RelativePath="..\..\..\src\file3.c"
 --      >
@@ -422,7 +410,7 @@ end
 function _make_cxfile(vcprojfile, vsinfo, target, sourcefile, objectfile, vcprojdir)
 
     -- get the target key
-    local key = tostring(target)
+    local key = target:cachekey()
 
     -- make flags cache
     _g.flags = _g.flags or {}
@@ -449,7 +437,7 @@ function _make_cxfile(vcprojfile, vsinfo, target, sourcefile, objectfile, vcproj
                 vcprojfile:print("AdditionalOptions=\"%s\"", flags)
                 vcprojfile:print("ObjectFile=\"%s\"", path.relative(path.absolute(objectfile), vcprojdir))
 
-                -- complie as c++ if exists flag: /TP
+                -- compile as c++ if exists flag: /TP
                 if flags:find("[%-|/]TP") then
                     vcprojfile:print("CompileAs=\"2\"")
                 end
@@ -462,7 +450,7 @@ end
 
 -- make rcfile
 --
--- .e.g
+-- e.g.
 --  <File
 --      RelativePath="..\..\..\src\resource.rc"
 --      >
@@ -503,7 +491,7 @@ end
 
 -- make files
 --
--- .e.g
+-- e.g.
 -- <Filter
 --      Name="Source Files"
 --      >
@@ -539,7 +527,8 @@ function _make_files(vcprojfile, vsinfo, target, vcprojdir)
         local sourcebatches = target:sourcebatches()        
         -- c/cxx files
         vcprojfile:enter("<Filter Name=\"Source Files\">")
-            for sourcekind, sourcebatch in pairs(sourcebatches) do
+            for _, sourcebatch in pairs(sourcebatches) do
+                local sourcekind = sourcebatch.sourcekind
                 if sourcekind ~= "mrc" then
                     local objectfiles = sourcebatch.objectfiles
                     for idx, sourcefile in ipairs(sourcebatch.sourcefiles) do
@@ -553,7 +542,8 @@ function _make_files(vcprojfile, vsinfo, target, vcprojdir)
 
         -- *.rc files
         vcprojfile:enter("<Filter Name=\"Resource Files\">")
-            for sourcekind, sourcebatch in pairs(sourcebatches) do
+            for _, sourcebatch in pairs(sourcebatches) do
+                local sourcekind = sourcebatch.sourcekind
                 if sourcekind == "mrc" then
                     local objectfiles = sourcebatch.objectfiles
                     for idx, sourcefile in ipairs(sourcebatch.sourcefiles) do

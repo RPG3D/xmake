@@ -4,7 +4,87 @@
 
 ### New features
 
+* [#569](https://github.com/xmake-io/xmake/pull/569): Add c++ modules build rules
+* Add `xmake project -k xmakefile` generator
+
+### Change
+
+* [#563](https://github.com/xmake-io/xmake/pull/563): Separate build rules for specific language files from action/build 
+* [#570](https://github.com/xmake-io/xmake/issues/570): Add `qt.widgetapp` and `qt.quickapp` rules
+* [#576](https://github.com/xmake-io/xmake/issues/576): Uses `set_toolchain` instead of `add_tools` and `set_tools`
+* Improve `xmake create` action
+* [#589](https://github.com/xmake-io/xmake/issues/589): Improve the default build jobs number to optimize build speed
+
+### Bugs fixed
+
+* [#567](https://github.com/xmake-io/xmake/issues/567): Fix out of memory for serialize 
+* [#566](https://github.com/xmake-io/xmake/issues/566): Fix link order problem with remote packages 
+* [#565](https://github.com/xmake-io/xmake/issues/565): Fix run path for vcpkg packages
+
+## v2.2.8
+
+### New features
+
+* Add protobuf c/c++ rules
+* [#468](https://github.com/xmake-io/xmake/pull/468): Add utf-8 support for io module on windows
+* [#472](https://github.com/xmake-io/xmake/pull/472): Add `xmake project -k vsxmake` plugin to support call xmake from vs/msbuild
+* [#487](https://github.com/xmake-io/xmake/issues/487): Support to build the selected files for the given target
+* Add filelock for io
+* [#513](https://github.com/xmake-io/xmake/issues/513): Support for android/termux
+* [#517](https://github.com/xmake-io/xmake/issues/517): Add `add_cleanfiles` api for target
+* [#537](https://github.com/xmake-io/xmake/pull/537): Add `set_runenv` api to override os/envs 
+
+### Changes
+
+* [#257](https://github.com/xmake-io/xmake/issues/257): Lock the whole project to avoid other process to access.
+* Attempt to enable /dev/shm for the os.tmpdir
+* [#542](https://github.com/xmake-io/xmake/pull/542): Improve vs unicode output for link/cl
+* Improve binary bitcode lua scripts in the program directory
+
+### Bugs fixed
+
+* [#549](https://github.com/xmake-io/xmake/issues/549): Fix error caused by the new vsDevCmd.bat of vs2019
+
+## v2.2.7
+
+### New features
+
+* [#455](https://github.com/xmake-io/xmake/pull/455): support clang as cuda compiler, try `xmake f --cu=clang`
+* [#440](https://github.com/xmake-io/xmake/issues/440): Add `set_rundir()` and `add_runenvs()` api for target/run
+* [#443](https://github.com/xmake-io/xmake/pull/443): Add tab completion support
+* Add `on_link`, `before_link` and `after_link` for rule and target
+* [#190](https://github.com/xmake-io/xmake/issues/190): Add `add_rules("lex", "yacc")` rules to support lex/yacc projects
+
+### Changes
+
+* [#430](https://github.com/xmake-io/xmake/pull/430): Add `add_cugencodes()` api to improve set codegen for cuda
+* [#432](https://github.com/xmake-io/xmake/pull/432): support deps analyze for cu file (for CUDA 10.1+)
+* [#437](https://github.com/xmake-io/xmake/issues/437): Support explict git source for xmake update, `xmake update github:xmake-io/xmake#dev`
+* [#438](https://github.com/xmake-io/xmake/pull/438): Support to only update scripts, `xmake update --scriptonly dev`
+* [#433](https://github.com/xmake-io/xmake/issues/433): Improve cuda to support device-link
+* [#442](https://github.com/xmake-io/xmake/issues/442): Improve test library
+
+## v2.2.6
+
+### New features
+
 * [#380](https://github.com/xmake-io/xmake/pull/380): Add support to export compile_flags.txt 
+* [#382](https://github.com/xmake-io/xmake/issues/382): Simplify simple scope settings
+* [#397](https://github.com/xmake-io/xmake/issues/397): Add clib package manager support
+* [#404](https://github.com/xmake-io/xmake/issues/404): Support Qt for android and deploy android apk
+* Add some qt empty project templates, e.g. `widgetapp_qt`, `quickapp_qt_static` and `widgetapp_qt_static`
+* [#415](https://github.com/xmake-io/xmake/issues/415): Add `--cu-cxx` config arguments to `nvcc/-ccbin`
+* Add `--ndk_stdcxx=y` and `--ndk_cxxstl=gnustl_static` argument options for android NDK
+
+### Changes
+
+* Improve remote package manager
+* Improve `target:on_xxx` scripts to support to match `android|armv7-a@macosx,linux|x86_64` pattern
+* Improve loadfile to optimize startup speed, decrease 98% time
+
+### Bugs fixed
+
+* [#400](https://github.com/xmake-io/xmake/issues/400): fix c++ languages bug for qt rules
 
 ## v2.2.5
 
@@ -157,7 +237,7 @@
 
 ### Changes
 
-* Improve to configure cross-toolchains, add tool alias to support unknown tool name, .e.g `xmake f --cc=gcc@ccmips.exe`
+* Improve to configure cross-toolchains, add tool alias to support unknown tool name, e.g. `xmake f --cc=gcc@ccmips.exe`
 * [#151](https://github.com/xmake-io/xmake/issues/151): Improve to build the share library for the mingw platform
 * Improve to generate makefile plugin
 * Improve the checking errors tips
@@ -186,7 +266,7 @@
 
 ### Changes
 
-* Improve support for IDE/editor plugins (.e.g vscode, sublime, intellij-idea)
+* Improve support for IDE/editor plugins (e.g. vscode, sublime, intellij-idea)
 * Add `.gitignore` file when creating new projects
 * Improve to create template project
 * Improve to detect toolchains on macosx without xcode
@@ -236,7 +316,7 @@
 
 * Improve `add_files` to configure the compile option of the given files
 * Inherit links and linkdirs from the dependent targets and options
-* Improve `target.add_deps` and add inherit config, .e.g `add_deps("test", {inherit = false})`
+* Improve `target.add_deps` and add inherit config, e.g. `add_deps("test", {inherit = false})`
 * Remove the binary files of `tbox.pkg`
 * Use `/Zi` instead of `/ZI` for msvc
 
@@ -254,7 +334,7 @@
 * [#83](https://github.com/xmake-io/xmake/issues/83): Add user extension modules to detect program, libraries and files.
 * Add `find_program`, `find_file`, `find_library`, `find_tool` and `find_package` module interfaces.
 * Add `net.*` and `devel.*` extension modules
-* Add `val()` api to get the value of builtin-variable, .e.g `val("host")`, `val("env PATH")`, `val("shell echo hello")` and `val("reg HKEY_LOCAL_MACHINE\\XX;Value")`
+* Add `val()` api to get the value of builtin-variable, e.g. `val("host")`, `val("env PATH")`, `val("shell echo hello")` and `val("reg HKEY_LOCAL_MACHINE\\XX;Value")`
 * Support to compile the microsoft resource file (.rc)
 * Add `has_flags`, `features` and `has_features` for detect module interfaces.
 * Add `option.on_check`, `option.after_check` and `option.before_check` api
@@ -276,7 +356,7 @@
 * Improve `print` interface to dump table
 * [#111](https://github.com/xmake-io/xmake/issues/111): Add `--root` common option to allow run xmake command as root
 * [#113](https://github.com/xmake-io/xmake/pull/113): Privilege manage when running as root, store the root privilege and degrade.
-* Improve `xxx_script` in `xmake.lua` to support pattern match, .e.g `on_build("iphoneos|arm*", function (target) end)`
+* Improve `xxx_script` in `xmake.lua` to support pattern match, e.g. `on_build("iphoneos|arm*", function (target) end)`
 * improve builtin-variables to support to get the value envirnoment and registry
 * Improve to detect vstudio sdk and cross toolchains envirnoment
 * [#71](https://github.com/xmake-io/xmake/issues/71): Improve to detect compiler and linker from env vars
@@ -426,7 +506,7 @@
 
 ### New features
 
-* Add native shell support for `xmake.lua`. .e.g `add_ldflags("$(shell pkg-config --libs sqlite3)")`
+* Add native shell support for `xmake.lua`. e.g. `add_ldflags("$(shell pkg-config --libs sqlite3)")`
 * Enable pdb symbol files for windows
 * Add debugger support on windows (vsjitdebugger, ollydbg, windbg ... )
 * Add `getenv` interface for the global scope of `xmake.lua`
@@ -449,7 +529,7 @@
 
 * Add check includes dependence automatically
 * Add print colors 
-* Add debugger support, .e.g `xmake run -d program ...`
+* Add debugger support, e.g. `xmake run -d program ...`
 
 ### Changes
 
@@ -488,7 +568,7 @@
 
 * Add task api for running custom tasks
 * Add plugin expansion and provide some builtin plugins
-* Add export ide project plugin(.e.g makefile and will support to export other projects for vs, xcode in feature)
+* Add export ide project plugin(e.g. makefile and will support to export other projects for vs, xcode in feature)
 * Add demo plugin for printing 'hello xmake'
 * Add make doxygen documents plugin
 * Add macro script plugin
@@ -511,7 +591,7 @@
 * Modify some api name, but be compatible with the old version
 * Optimize merging static library
 * Simplify cross compilation using argument `--sdk=xxx`
-* Simplify boolean option for command line, .e.g `xmake config --xxx=[y|n|yes|no|true|false]`
+* Simplify boolean option for command line, e.g. `xmake config --xxx=[y|n|yes|no|true|false]`
 * Merge iphoneos and iphonesimulator platforms
 * Merge watchos and watchsimulator platformss
 
@@ -551,7 +631,7 @@
 ### New features
 
 * Add `set_runscript` api and support custom action
-* Add import api and support import modules in xmake.lua, .e.g os, path, utils ...
+* Add import api and support import modules in xmake.lua, e.g. os, path, utils ...
 * Add new architecture: arm64-v8a for android
 
 ### Bugs fixed
@@ -568,7 +648,87 @@
 
 ### 新特性
 
+* [#569](https://github.com/xmake-io/xmake/pull/569): 增加对c++模块的实验性支持
+* 添加`xmake project -k xmakefile`生成器
+
+### 改进
+
+* [#563](https://github.com/xmake-io/xmake/pull/563): 重构构建逻辑，将特定语言的构建抽离到独立的rules中去 
+* [#570](https://github.com/xmake-io/xmake/issues/570): 改进Qt构建，将`qt.application`拆分成`qt.widgetapp`和`qt.quickapp`两个构建规则
+* [#576](https://github.com/xmake-io/xmake/issues/576): 使用`set_toolchain`替代`add_tools`和`set_tools`，解决老接口使用歧义，提供更加易理解的设置方式
+* 改进`xmake create`创建模板工程
+* [#589](https://github.com/xmake-io/xmake/issues/589): 改进默认的构建任务数，充分利用cpu core来提速整体编译速度
+
+### Bugs修复
+
+* [#567](https://github.com/xmake-io/xmake/issues/567): 修复序列化对象时候出现的内存溢出问题 
+* [#566](https://github.com/xmake-io/xmake/issues/566): 修复安装远程依赖的链接顺序问题
+* [#565](https://github.com/xmake-io/xmake/issues/565): 修复vcpkg包的运行PATH设置问题
+
+## v2.2.8
+
+### 新特性
+
+* 添加protobuf c/c++构建规则
+* [#468](https://github.com/xmake-io/xmake/pull/468): 添加对 Windows 的 UTF-8 支持
+* [#472](https://github.com/xmake-io/xmake/pull/472): 添加`xmake project -k vsxmake`去更好的支持vs工程的生成，内部直接调用xmake来编译
+* [#487](https://github.com/xmake-io/xmake/issues/487): 通过`xmake --files="src/*.c"`支持指定一批文件进行编译。
+* 针对io模块增加文件锁接口
+* [#513](https://github.com/xmake-io/xmake/issues/513): 增加对android/termux终端的支持，可在android设备上执行xmake来构建项目
+* [#517](https://github.com/xmake-io/xmake/issues/517): 为target增加`add_cleanfiles`接口，实现快速定制化清理文件
+* [#537](https://github.com/xmake-io/xmake/pull/537): 添加`set_runenv`接口去覆盖写入系统envs
+
+### 改进
+
+* [#257](https://github.com/xmake-io/xmake/issues/257): 锁定当前正在构建的工程，避免其他xmake进程同时对其操作
+* 尝试采用/dev/shm作为os.tmpdir去改善构建过程中临时文件的读写效率
+* [#542](https://github.com/xmake-io/xmake/pull/542): 改进vs系列工具链的unicode输出问题
+* 对于安装的lua脚本，启用lua字节码存储，减少安装包大小（<2.4M），提高运行加载效率。
+
+### Bugs修复
+
+* [#549](https://github.com/xmake-io/xmake/issues/549): 修复新版vs2019下检测环境会卡死的问题
+
+## v2.2.7
+
+### 新特性
+
+* [#455](https://github.com/xmake-io/xmake/pull/455): 支持使用 clang 作为 cuda 编译器，`xmake f --cu=clang`
+* [#440](https://github.com/xmake-io/xmake/issues/440): 为target/run添加`set_rundir()`和`add_runenvs()`接口设置
+* [#443](https://github.com/xmake-io/xmake/pull/443): 添加命令行tab自动完成支持
+* 为rule/target添加`on_link`,`before_link`和`after_link`阶段自定义脚本支持
+* [#190](https://github.com/xmake-io/xmake/issues/190): 添加`add_rules("lex", "yacc")`规则去支持lex/yacc项目
+
+### 改进
+
+* [#430](https://github.com/xmake-io/xmake/pull/430): 添加`add_cugencodes()`api为cuda改进设置codegen
+* [#432](https://github.com/xmake-io/xmake/pull/432): 针对cuda编译支持依赖分析检测（仅支持 CUDA 10.1+）
+* [#437](https://github.com/xmake-io/xmake/issues/437): 支持指定更新源，`xmake update github:xmake-io/xmake#dev`
+* [#438](https://github.com/xmake-io/xmake/pull/438): 支持仅更新脚本，`xmake update --scriptonly dev`
+* [#433](https://github.com/xmake-io/xmake/issues/433): 改进cuda构建支持device-link设备代码链接
+* [#442](https://github.com/xmake-io/xmake/issues/442): 改进tests测试框架
+
+## v2.2.6
+
+### 新特性
+
 * [#380](https://github.com/xmake-io/xmake/pull/380): 添加导出compile_flags.txt 
+* [#382](https://github.com/xmake-io/xmake/issues/382): 简化域设置语法
+* [#397](https://github.com/xmake-io/xmake/issues/397): 添加clib包集成支持
+* [#404](https://github.com/xmake-io/xmake/issues/404): 增加Qt/Android编译支持，并且支持android apk生成和部署
+* 添加一些Qt空工程模板，例如：`widgetapp_qt`, `quickapp_qt_static` and `widgetapp_qt_static`
+* [#415](https://github.com/xmake-io/xmake/issues/415): 添加`--cu-cxx`配置参数到`nvcc/-ccbin`
+* 为Android NDK添加`--ndk_stdcxx=y`和`--ndk_cxxstl=gnustl_static`参数选项
+
+### 改进
+
+* 改进远程依赖包管理，丰富包仓库
+* 改进`target:on_xxx`自定义脚本，去支持匹配`android|armv7-a@macosx,linux|x86_64`模式
+* 改进loadfile，优化启动速度，windows上启动xmake时间提速98%
+
+### Bugs修复
+
+* [#400](https://github.com/xmake-io/xmake/issues/400): 修复qt项目c++语言标准设置无效问题
 
 ## v2.2.5
 

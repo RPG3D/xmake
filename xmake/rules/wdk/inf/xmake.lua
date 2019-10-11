@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -61,9 +57,6 @@ rule("wdk.inf")
 
         -- the target file
         local targetfile = path.join(target:targetdir(), path.basename(sourcefile) .. ".inf")
-
-        -- add clean files
-        target:data_add("wdk.cleanfiles", targetfile)
 
         -- save this target file for signing (wdk.sign.*, wdk.package.* rules)
         target:data_set("wdk.sign.inf", targetfile)

@@ -1,11 +1,10 @@
--- imports
-import("...build")
-
 -- main entry
-function main()
+function main(t)
 
     -- build project
     if os.host() == "macosx" then
-        build({iphoneos = true})
+        t:build({iphoneos = true})
+    else
+        return t:skip("wrong host platform")
     end
 end

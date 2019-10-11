@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -24,6 +20,7 @@
 
 -- load modules
 local os        = require("base/os")
+local utils     = require("base/utils")
 local log       = require("ui/log")
 local rect      = require("ui/rect")
 local event     = require("ui/event")
@@ -108,7 +105,7 @@ function application:run(...)
     end
 
     -- run application
-    local ok, errors = xpcall(runner, debug.traceback)
+    local ok, errors = utils.trycall(runner)
 
     -- exit curses
     if not ok then

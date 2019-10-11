@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -23,13 +19,13 @@
 --
 
 -- imports
-import("lib.detect.check_cxsnippets")
+import("lib.detect.check_cxxsnippets")
 
 -- has the given c++ funcs?
 --
 -- @param funcs     the funcs
 -- @param opt       the argument options
---                  .e.g 
+--                  e.g. 
 --                  { verbose = false, target = [target|option], includes = "", configs = {linkdirs = .., links = .., defines = .., ..}}
 --
 -- funcs:
@@ -48,13 +44,10 @@ import("lib.detect.check_cxsnippets")
 function main(funcs, opt)
 
     -- init options
-    opt = opt or {}
-
-    -- init funcs
-    opt.sourcekind = "cxx"
-    opt.funcs      = funcs
+    opt       = opt or {}
+    opt.funcs = funcs
     
     -- has funcs?
     local name = opt.name or "has_cxxfuncs"
-    return check_cxsnippets({[name] = ""}, opt)
+    return check_cxxsnippets({[name] = ""}, opt)
 end

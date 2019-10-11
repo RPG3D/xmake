@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,11 +26,8 @@ import("core.tool.compiler")
 import("core.project.depend")
 import("object")
 
--- build target from objects
-function _build_from_objects(target, buildinfo)
-
-    -- build objects
-    object.build(target, buildinfo)
+-- do link target 
+function _do_link_target(target, opt)
 
     -- load linker instance
     local linkinst = linker.load(target:targetkind(), target:sourcekinds(), {target = target})
@@ -87,7 +80,7 @@ function _build_from_objects(target, buildinfo)
     local verbose = option.get("verbose")
 
     -- trace progress info
-    cprintf("${color.build.progress}" .. theme.get("text.build.progress_format") .. ":${clear} ", (buildinfo.targetindex + 1) * 100 / buildinfo.targetcount)
+    cprintf("${color.build.progress}" .. theme.get("text.build.progress_format") .. ":${clear} ", opt.progress.stop)
     if verbose then
         cprint("${dim color.build.target}archiving.$(mode) %s", path.filename(targetfile))
     else
@@ -96,7 +89,8 @@ function _build_from_objects(target, buildinfo)
 
     -- trace verbose info
     if verbose then
-        print(linkinst:linkcmd(objectfiles, targetfile, {linkflags = linkflags}))
+        -- show the full link command with raw arguments, it will expand @xxx.args for msvc/link on windows
+        print(linkinst:linkcmd(objectfiles, targetfile, {linkflags = linkflags, rawargs = true}))
     end
 
     -- flush io buffer to update progress info
@@ -111,57 +105,80 @@ function _build_from_objects(target, buildinfo)
     depend.save(dependinfo, dependfile)
 end
 
--- build target from sources
-function _build_from_sources(target, buildinfo, sourcebatch, sourcekind)
+-- on link the given target
+function _on_link_target(target, opt)
 
-    -- the target file
-    local targetfile = target:targetfile()
-
-    -- is verbose?
-    local verbose = option.get("verbose")
-
-    -- trace progress into
-    cprintf("${color.build.progress}" .. theme.get("text.build.progress_format") .. ":${clear} ", (buildinfo.targetindex + 1) * 100 / buildinfo.targetcount)
-    if verbose then
-        cprint("${dim color.build.target}archiving.$(mode) %s", path.filename(targetfile))
-    else
-        cprint("${color.build.target}archiving.$(mode) %s", path.filename(targetfile))
+    -- link target with rules
+    local done = false
+    for _, r in ipairs(target:orderules()) do
+        local on_link = r:script("link")
+        if on_link then
+            on_link(target, opt)
+            done = true
+        end
     end
+    if done then return end
 
-    -- trace verbose info
-    if verbose then
-        print(compiler.buildcmd(sourcebatch.sourcefiles, targetfile, {target = target, sourcekind = sourcekind}))
-    end
-
-    -- flush io buffer to update progress info
-    io.flush()
-
-    -- build it
-    compiler.build(sourcebatch.sourcefiles, targetfile, {target = target, sourcekind = sourcekind})
+    -- do link
+    _do_link_target(target, opt)
 end
 
--- build static target
-function build(target, buildinfo)
+-- link target
+function _link_target(target, opt)
 
-    -- only one source kind?
-    local kindcount = 0
-    local sourcekind = nil
-    local sourcebatch = nil
-    for kind, batch in pairs(target:sourcebatches()) do
-        if not batch.rulename then
-            sourcekind  = kind
-            sourcebatch = batch
-            kindcount   = kindcount + 1
-            if kindcount > 1 then
-                break
-            end
+    -- get progress
+    local progress = opt.progress
+    local progress_before = {start = progress.start, stop = progress.start}
+    local progress_after  = {start = progress.stop, stop = progress.stop}
+
+    -- do before link for target
+    opt.progress = progress_before
+    local before_link = target:script("link_before")
+    if before_link then
+        before_link(target, opt)
+    end
+
+    -- do before link for rules
+    for _, r in ipairs(target:orderules()) do
+        local before_link = r:script("link_before")
+        if before_link then
+            before_link(target, opt)
         end
     end
 
-    -- build target
-    if kindcount == 1 and compiler.buildmode(sourcekind, "static:sources", {target = target}) then
-        _build_from_sources(target, buildinfo, sourcebatch, sourcekind)
-    else
-        _build_from_objects(target, buildinfo)
+    -- on link
+    opt.progress = progress
+    target:script("link", _on_link_target)(target, table.join(opt, {origin = _do_link_target}))
+
+    -- do after link for target
+    opt.progress = progress_after
+    local after_link = target:script("link_after")
+    if after_link then
+        after_link(target, opt)
     end
+
+    -- do after link for rules
+    for _, r in ipairs(target:orderules()) do
+        local after_link = r:script("link_after")
+        if after_link then
+            after_link(target, opt)
+        end
+    end
+end
+
+-- build static target
+function build(target, opt)
+
+    -- separate progress
+    local progress = opt.progress
+    local progress_mid = math.max(progress.start, progress.stop - 1)
+
+    -- build objects
+    opt = table.copy(opt)
+    opt.progress = {start = progress.start, stop = progress_mid}
+    object.build(target, opt)
+
+    -- link target
+    opt.progress = {start = progress_mid, stop = progress.stop}
+    _link_target(target, opt)
 end

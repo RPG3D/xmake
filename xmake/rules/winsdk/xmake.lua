@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -22,33 +18,44 @@
 -- @file        xmake.lua
 --
 
+-- define rule: win.sdk.resource
+rule("win.sdk.resource")
+    set_extensions(".rc")    
+    on_build_files("private.action.build.object")
+
 -- define rule: application
 rule("win.sdk.application")
 
-    -- add deps
-    add_deps("win.sdk.dotnet")
+    -- before load
+    before_load(function (target)
+        target:set("kind", "binary")
+    end)
 
     -- after load
     after_load(function (target)
 
-        -- set kind: binary
-        target:set("kind", "binary")
-
         -- set subsystem: windows
-        local subsystem = false
-        for _, ldflag in ipairs(target:get("ldflags")) do
-            ldflag = ldflag:lower()
-            if ldflag:find("[/%-]subsystem:") then
-                subsystem = true
-                break
+        if is_plat("mingw") then
+            target:add("ldflags", "-mwindows", {force = true})
+        else
+            local subsystem = false
+            for _, ldflag in ipairs(target:get("ldflags")) do
+                ldflag = ldflag:lower()
+                if ldflag:find("[/%-]subsystem:") then
+                    subsystem = true
+                    break
+                end
             end
-        end
-        if not subsystem then
-            target:add("ldflags", "-subsystem:windows", {force = true})
+            if not subsystem then
+                target:add("ldflags", "-subsystem:windows", {force = true})
+            end
         end
 
         -- add links
-        target:add("links", "kernel32", "user32", "gdi32", "winspool", "comdlg32", "advapi32")
-        target:add("links", "shell32", "ole32", "oleaut32", "uuid", "odbc32", "odbccp32", "comctl32")
-        target:add("links", "cfgmgr32", "comdlg32", "setupapi", "strsafe", "shlwapi")
+        target:add("syslinks", "kernel32", "user32", "gdi32", "winspool", "comdlg32", "advapi32")
+        target:add("syslinks", "shell32", "ole32", "oleaut32", "uuid", "odbc32", "odbccp32", "comctl32")
+        target:add("syslinks", "comdlg32", "setupapi", "shlwapi")
+        if not is_plat("mingw") then
+            target:add("syslinks", "strsafe")
+        end
     end)

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -67,7 +63,7 @@ function sandbox_lib_detect_find_program._check(program, opt)
     if type(opt.check) == "string" then
         ok, errors = os.runv(program, {opt.check})
     else
-        ok, errors = sandbox.load(opt.check, program) 
+        ok, errors = sandbox.load(opt.check, program)
     end
 
     -- check failed? print verbose error info
@@ -88,29 +84,36 @@ function sandbox_lib_detect_find_program._find_from_pathes(name, pathes, opt)
 
             -- format path for builtin variables
             if type(_path) == "function" then
-                local ok, results = sandbox.load(_path) 
+                local ok, results = sandbox.load(_path)
                 if ok then
                     _path = results or ""
-                else 
+                else
                     raise(results)
                 end
-            else
-                _path = vformat(_path)
+            elseif type(_path) == "string" then
+                if _path:match("^%$%(env .+%)$") then
+                    _path = path.splitenv(vformat(_path))
+                else
+                    _path = vformat(_path)
+                end
             end
 
-            -- get program path
-            local program_path = nil
-            if os.isfile(_path) then
-                program_path = _path
-            elseif os.isdir(_path) then
-                program_path = path.join(_path, name)
-            end
+            for _, _s_path in ipairs(table.wrap(_path)) do
 
-            -- the program path
-            if program_path and os.isexec(program_path) then
-                -- check it
-                if sandbox_lib_detect_find_program._check(program_path, opt) then
-                    return program_path
+                -- get program path
+                local program_path = nil
+                if os.isfile(_s_path) then
+                    program_path = _s_path
+                elseif os.isdir(_s_path) then
+                    program_path = path.join(_s_path, name)
+                end
+
+                -- the program path
+                if program_path and (os.isexec(program_path) or os.isexec(program_path:split("%s")[1])) then
+                    -- check it
+                    if sandbox_lib_detect_find_program._check(program_path, opt) then
+                        return program_path
+                    end
                 end
             end
         end
@@ -120,10 +123,10 @@ end
 -- find program from the xmake packages
 function sandbox_lib_detect_find_program._find_from_packages(name, opt)
 
-    -- get the manifest file of package, .e.g ~/.xmake/packages/g/git/1.1.12/ed41d5327fad3fc06fe376b4a94f62ef/manifest.txt 
+    -- get the manifest file of package, e.g. ~/.xmake/packages/g/git/1.1.12/ed41d5327fad3fc06fe376b4a94f62ef/manifest.txt 
     local manifest_file = path.join(package.installdir(), name:sub(1, 1), name, opt.version, opt.buildhash, "manifest.txt")
     if not os.isfile(manifest_file) then
-        return 
+        return
     end
 
     -- get install directory of this package
@@ -214,8 +217,8 @@ end
 -- find program
 --
 -- @param name      the program name
--- @param opt       the options, .e.g {pathes = {"/usr/bin"}, check = function (program) os.run("%s -h", program) end, verbose = true, force = true, cachekey = "xxx"}
---                    - opt.pathes    the program pathes (.e.g dirs, pathes, winreg pathes, script pathes)
+-- @param opt       the options, e.g. {pathes = {"/usr/bin"}, check = function (program) os.run("%s -h", program) end, verbose = true, force = true, cachekey = "xxx"}
+--                    - opt.pathes    the program pathes (e.g. dirs, pathes, winreg pathes, script pathes)
 --                    - opt.check     the check script or command 
 --                    - opt.norun     do not attempt to run program to check program fastly
 --
@@ -234,7 +237,7 @@ end
 --
 function sandbox_lib_detect_find_program.main(name, opt)
 
-    -- @note avoid detect the same program in the same time leading to deadlock if running in the coroutine (.e.g ccache)
+    -- @note avoid detect the same program in the same time leading to deadlock if running in the coroutine (e.g. ccache)
     local coroutine_running = coroutine.running()
     if coroutine_running then
         while checking ~= nil and checking == name do
@@ -254,7 +257,7 @@ function sandbox_lib_detect_find_program.main(name, opt)
     end
 
     -- attempt to get result from cache first
-    local cacheinfo = cache.load(cachekey) 
+    local cacheinfo = cache.load(cachekey)
     local result = cacheinfo[name]
     if result ~= nil and not opt.force then
         return utils.ifelse(result, result, nil)
@@ -262,7 +265,7 @@ function sandbox_lib_detect_find_program.main(name, opt)
 
     -- find executable program
     checking = utils.ifelse(coroutine_running, name, nil)
-    result = sandbox_lib_detect_find_program._find(name, opt.pathes, opt) 
+    result = sandbox_lib_detect_find_program._find(name, opt.pathes, opt)
     checking = nil
 
     -- cache result

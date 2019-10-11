@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -29,7 +25,7 @@ import("lib.detect.find_file")
 -- get configs
 function _get_configs(package, configs)
     local configs = configs or {}
-    if package:plat() == "windows" then
+    if package:is_plat("windows") then
         local vs_runtime = package:config("vs_runtime")
         if vs_runtime then
             table.insert(configs, '-DCMAKE_CXX_FLAGS_DEBUG="/' .. vs_runtime .. 'd"')
@@ -58,43 +54,39 @@ function _get_configs(package, configs)
     return configs
 end
 
--- enter environments
-function _enter_envs(package)
-    
-    -- get old environments
-    local envs = {}
-    envs.CMAKE_PREFIX_PATH  = os.getenv("CMAKE_PREFIX_PATH")
-    envs.CMAKE_INCLUDE_PATH = os.getenv("CMAKE_INCLUDE_PATH")
-    envs.CMAKE_LIBRARY_PATH = os.getenv("CMAKE_LIBRARY_PATH")
-
-    -- set new environments
+-- get build environments
+function buildenvs(package)
+    local envs               = {}
+    local CMAKE_LIBRARY_PATH = {}
+    local CMAKE_INCLUDE_PATH = {}
+    local CMAKE_PREFIX_PATH  = {}
     for _, dep in ipairs(package:orderdeps()) do
         if dep:isSys() then
             local fetchinfo = dep:fetch()
             if fetchinfo then
-                os.addenv("CMAKE_LIBRARY_PATH", unpack(table.wrap(fetchinfo.linkdirs)))
-                os.addenv("CMAKE_INCLUDE_PATH", unpack(table.wrap(fetchinfo.includedirs)))
+                table.join2(CMAKE_LIBRARY_PATH, fetchinfo.linkdirs)
+                table.join2(CMAKE_INCLUDE_PATH, fetchinfo.includedirs)
             end
         else
-            os.addenv("CMAKE_PREFIX_PATH", dep:installdir())
+            table.join2(CMAKE_PREFIX_PATH, dep:installdir())
         end
     end
+    envs.CMAKE_LIBRARY_PATH = path.joinenv(CMAKE_LIBRARY_PATH)
+    envs.CMAKE_INCLUDE_PATH = path.joinenv(CMAKE_INCLUDE_PATH)
+    envs.CMAKE_PREFIX_PATH  = path.joinenv(CMAKE_PREFIX_PATH)
     return envs
 end
 
--- leave environments
-function _leave_envs(package, envs)
-    for k, v in pairs(envs) do
-        os.setenv(k, v)
-    end
-end
-
 -- install package
-function install(package, configs)
+function install(package, configs, opt)
+
+    -- init options
+    opt = opt or {}
 
     -- enter build directory
-    os.mkdir("build/install")
-    local oldir = os.cd("build")
+    local buildir = "build_" .. hash.uuid():split('%-')[1]
+    os.mkdir(path.join(buildir, "install"))
+    local oldir = os.cd(buildir)
 
     -- init arguments
     local argv = {"-DCMAKE_INSTALL_PREFIX=" .. path.absolute("install")}
@@ -116,11 +108,8 @@ function install(package, configs)
     end
     table.insert(argv, '..')
 
-    -- enter environments
-    local envs = _enter_envs(package)
-
     -- generate build file
-    os.vrunv("cmake", argv)
+    os.vrunv("cmake", argv, {envs = opt.envs or buildenvs(package)})
 
     -- do build and install
     if is_host("windows") then
@@ -142,9 +131,6 @@ function install(package, configs)
         os.cp("install/lib", package:installdir())
         os.cp("install/include", package:installdir())
     end
-
-    -- leave environments
-    _leave_envs(package, envs)
     os.cd(oldir)
 end
 

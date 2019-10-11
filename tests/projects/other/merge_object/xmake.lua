@@ -1,25 +1,5 @@
--- the debug mode
-if is_mode("debug") then
-    
-    -- enable the debug symbols
-    set_symbols("debug")
-
-    -- disable optimization
-    set_optimize("none")
-end
-
--- the release mode
-if is_mode("release") then
-
-    -- set the symbols visibility: hidden
-    set_symbols("hidden")
-
-    -- enable fastest optimization
-    set_optimize("fastest")
-
-    -- strip all symbols
-    set_strip("all")
-end
+-- add rules
+add_rules("mode.debug", "mode.release")
 
 -- add target
 target("merge_object")
@@ -29,6 +9,11 @@ target("merge_object")
 
     -- add files
     add_files("src/interface.c") 
+
+    -- save object file
+    after_build_file(function (target, sourcefile)
+        os.cp(target:objectfile(sourcefile), "$(buildir)/merge_object/")
+    end)
 
 -- add target
 target("test")
@@ -41,5 +26,9 @@ target("test")
 
     -- add files
     add_files("src/test.c") 
-    add_files("build/.objs/merge_object/src/interface.c.o")
+    if is_plat("windows") then
+        add_files("$(buildir)/merge_object/interface.c.obj")
+    else
+        add_files("$(buildir)/merge_object/interface.c.o")
+    end
 

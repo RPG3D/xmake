@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,6 +26,7 @@ local os                = require("base/os")
 local path              = require("base/path")
 local utils             = require("base/utils")
 local table             = require("base/table")
+local config            = require("project/config")
 local target            = require("project/target")
 local raise             = require("sandbox/modules/raise")
 local import            = require("sandbox/modules/import")
@@ -39,7 +36,7 @@ local find_file         = import("lib.detect.find_file")
 --
 -- @param names     the library names
 -- @param pathes    the search pathes
--- @param opt       the options, .e.g {kind = "static/shared", suffixes = {"/aa", "/bb"}}
+-- @param opt       the options, e.g. {kind = "static/shared", suffixes = {"/aa", "/bb"}}
 --
 -- @return          {kind = "static", link = "crypto", linkdir = "/usr/local/lib", filename = "libcrypto.a"}
 --
@@ -67,6 +64,11 @@ function sandbox_lib_detect_find_library.main(names, pathes, opt)
     for _, name in ipairs(table.wrap(names)) do
         for _, kind in ipairs(table.wrap(kinds)) do
             local filepath = find_file(target.filename(name, kind), pathes, opt)
+            if not filepath and config.is_plat("mingw") then
+                -- for the mingw platform, it is compatible with the libxxx.a and xxx.lib
+                local formats = {static = "lib$(name).a", shared = "lib$(name).so"}
+                filepath = find_file(target.filename(name, kind, formats[kind]), pathes, opt)
+            end
             if filepath then
                 local filename = path.filename(filepath)
                 return {kind = kind, filename = filename, linkdir = path.directory(filepath), link = target.linkname(filename)}

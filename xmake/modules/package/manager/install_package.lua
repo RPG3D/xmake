@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -85,7 +81,7 @@ end
 -- install package using the package manager
 --
 -- @param name  the package name, e.g. zlib 1.12.x (try all), XMAKE::zlib 1.12.x, BREW::zlib, VCPKG::zlib, CONAN::OpenSSL/1.0.2n@conan/stable
--- @param opt   the options, .e.g {verbose = true, version = "1.12.x")
+-- @param opt   the options, e.g. {verbose = true, version = "1.12.x")
 --
 function main(name, opt)
 
@@ -96,7 +92,7 @@ function main(name, opt)
     opt.mode = opt.mode or config.mode() or "release"
 
     -- get package manager name
-    local manager_name, package_name = unpack(name:split("::", true))
+    local manager_name, package_name = unpack(name:split("::", {plain = true, strict = true}))
     if package_name == nil then
         package_name = manager_name
         manager_name = nil
@@ -106,7 +102,7 @@ function main(name, opt)
 
     -- get package name and require version
     local require_version = nil
-    package_name, require_version = unpack(package_name:trim():split("%s+"))
+    package_name, require_version = unpack(package_name:trim():split("%s"))
     opt.version = require_version or opt.version
 
     -- do install package

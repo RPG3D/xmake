@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -90,9 +86,9 @@ end
 --
 -- @param sdkdir    the xcode directory
 -- @param opt       the argument options 
---                  .e.g {verbose = true, force = false, sdkver = 19, toolchains_ver = "4.9"}  
+--                  e.g. {verbose = true, force = false, sdkver = 19, toolchains_ver = "4.9"}  
 --
--- @return          the xcode toolchain. .e.g {bindir = .., cross = ..}
+-- @return          the xcode toolchain. e.g. {bindir = .., cross = ..}
 --
 -- @code 
 --

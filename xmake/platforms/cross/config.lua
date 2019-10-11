@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -61,15 +57,20 @@ function _toolchains()
     -- init toolchains
     local cc         = toolchain("the c compiler")
     local cxx        = toolchain("the c++ compiler")
+    local cpp        = toolchain("the c preprocessor")
     local ld         = toolchain("the linker")
     local sh         = toolchain("the shared library linker")
     local ar         = toolchain("the static library archiver")
     local ex         = toolchain("the static library extractor")
+    local ranlib     = toolchain("the static library index generator")
     local as         = toolchain("the assember")
-    local toolchains = {cc = cc, cxx = cxx, as = as, ld = ld, sh = sh, ar = ar, ex = ex}
+    local toolchains = {cc = cc, cxx = cxx, cpp = cpp, as = as, ld = ld, sh = sh, ar = ar, ex = ex, ranlib = ranlib}
 
     -- init the c compiler
     cc:add("$(env CC)", {name = "gcc", cross = cross}, {name = "clang", cross = cross})
+
+    -- init the c preprocessor
+    cpp:add("$(env CPP)", {name = "gcc -E", cross = cross}, {name = "clang -E", cross = cross})
 
     -- init the c++ compiler
     cxx:add("$(env CXX)")
@@ -101,6 +102,8 @@ function _toolchains()
     -- init the static library extractor
     ex:add("$(env AR)", {name = "ar", cross = cross})
 
+    -- init the static library index generator
+    ar:add("$(env RANLIB)", {name = "ranlib", cross = cross})
     return toolchains
 end
 

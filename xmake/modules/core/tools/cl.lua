@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -15,7 +11,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
--- 
+--
 -- Copyright (C) 2015 - 2019, TBOOX Open Source Group.
 --
 -- @author      ruki
@@ -23,12 +19,14 @@
 --
 
 -- imports
+import("core.base.option")
 import("core.project.project")
 import("core.language.language")
+import("private.tools.vstool")
 
 -- init it
 function init(self)
-    
+
     -- init cxflags
     self:set("cxflags", "-nologo")
 
@@ -47,6 +45,8 @@ function init(self)
     ,   ["-fvisibility=.*"]         = ""
 
         -- warnings
+    ,   ["-Weverything"]            = "-Wall"
+    ,   ["-Wextra"]                 = "-W4"
     ,   ["-Wall"]                   = "-W3" -- = "-Wall" will enable too more warnings
     ,   ["-W1"]                     = "-W1"
     ,   ["-W2"]                     = "-W2"
@@ -77,12 +77,6 @@ function init(self)
     ,   ["-ftrapv"]                 = ""
     ,   ["-fsanitize=address"]      = ""
     })
-
-    -- init buildmodes
-    self:set("buildmodes",
-    {
-        ["object:sources"]      = false
-    })
 end
 
 -- make the symbol flag
@@ -102,10 +96,10 @@ function nf_symbol(self, level, target)
             if not os.isdir(symboldir) then
                 os.mkdir(symboldir)
             end
-            
+
             -- check and add symbol output file
-            flags = "-Zi -Fd" .. target:symbolfile()
-            if self:has_flags({"-Zi", "-FS", "-Fd" .. os.tmpfile() .. ".pdb"}, "cxflags") then
+            flags = "-Zi -Fd" .. path.join(symboldir, "compile." .. path.filename(symbolfile))
+            if self:has_flags({"-Zi", "-FS", "-Fd" .. os.nuldev() .. ".pdb"}, "cxflags", { flagskey = "-Zi -FS -Fd" }) then
                 flags = "-FS " .. flags
             end
         else
@@ -121,25 +115,26 @@ end
 function nf_warning(self, level)
 
     -- the maps
-    local maps = 
-    {   
-        none  = "-W0"
-    ,   less  = "-W1"
-    ,   more  = "-W3"
-    ,   all   = "-W3" -- = "-Wall" will enable too more warnings
-    ,   error = "-WX"
+    local maps =
+    {
+        none       = "-W0"
+    ,   less       = "-W1"
+    ,   more       = "-W3"
+    ,   all        = "-W3" -- = "-Wall" will enable too more warnings
+    ,   everything = "-Wall"
+    ,   error      = "-WX"
     }
 
     -- make it
-    return maps[level] 
+    return maps[level]
 end
 
 -- make the optimize flag
 function nf_optimize(self, level)
 
     -- the maps
-    local maps = 
-    {   
+    local maps =
+    {
         none        = "-Od"
     ,   faster      = "-O2"
     ,   fastest     = "-Ox -fp:fast"
@@ -156,7 +151,7 @@ function nf_vectorext(self, extension)
 
     -- the maps
     local maps =
-    {   
+    {
         sse    = "-arch:SSE"
     ,   sse2   = "-arch:SSE2"
     ,   avx    = "-arch:AVX"
@@ -175,7 +170,7 @@ function nf_language(self, stdname)
 
     -- the stdc maps
     if _g.cmaps == nil then
-        _g.cmaps = 
+        _g.cmaps =
         {
             -- stdc
             c99   = "-TP" -- compile as c++ files because msvc only support c89
@@ -187,7 +182,7 @@ function nf_language(self, stdname)
 
     -- the stdc++ maps
     if _g.cxxmaps == nil then
-        _g.cxxmaps = 
+        _g.cxxmaps =
         {
             cxx11       = "-std:c++11"
         ,   gnuxx11     = "-std:c++11"
@@ -195,8 +190,12 @@ function nf_language(self, stdname)
         ,   gnuxx14     = "-std:c++14"
         ,   cxx17       = "-std:c++17"
         ,   gnuxx17     = "-std:c++17"
-        ,   cxx1z       = "-std:c++latest"
-        ,   gnuxx1z     = "-std:c++latest"
+        ,   cxx1z       = "-std:c++17"
+        ,   gnuxx1z     = "-std:c++17"
+        ,   cxx20       = "-std=c++latest"
+        ,   gnuxx20     = "-std=c++latest"
+        ,   cxx2a       = "-std=c++latest"
+        ,   gnuxx2a     = "-std=c++latest"
         }
         local cxxmaps2 = {}
         for k, v in pairs(_g.cxxmaps) do
@@ -216,7 +215,7 @@ function nf_language(self, stdname)
 
     -- not support it?
     if flag and flag:find("std:c++", 1, true) and not self:has_flags(flag, "cxflags") then
-        return 
+        return
     end
 
     -- ok
@@ -235,7 +234,7 @@ end
 
 -- make the includedir flag
 function nf_includedir(self, dir)
-    return "-I" .. os.args(dir)
+    return "-I" .. os.args(path.translate(dir))
 end
 
 -- make the c precompiled header flag
@@ -282,15 +281,15 @@ function _include_note(self, line)
     --
     -- TODO zh-tw, zh-hk, jp, ...
     --
-    _g.notes = _g.notes or 
+    _g.notes = _g.notes or
     {
         "Note: including file: "
-    ,   "\215\162\210\226: \176\252\186\172\206\196\188\254: " -- zh-cn: "注意: 包含文件: "
+    ,   "注意: 包含文件: "
     }
 
     -- contain notes?
     for idx, note in ipairs(_g.notes) do
-        
+
         -- dump line bytes
         --[[
         print(line)
@@ -313,18 +312,20 @@ function _include_deps(self, outdata)
     -- translate it
     local results = {}
     local uniques = {}
-    for _, line in ipairs(outdata:split("\r\n")) do
+    for _, line in ipairs(outdata:split("\n", {plain = true})) do
 
         -- get includefile
-        local includefile = _include_note(self, line)
+        local includefile = _include_note(self, line:trim())
         if includefile then
 
             -- get the relative
             includefile = path.relative(includefile, project.directory())
+            includefile = path.absolute(includefile)
 
             -- save it if belong to the project
-            if path.absolute(includefile):startswith(os.projectdir()) then
+            if includefile:startswith(os.projectdir()) then
 
+                includefile = path.relative(includefile, project.directory())
                 -- insert it and filter repeat
                 if not uniques[includefile] then
                     table.insert(results, includefile)
@@ -336,7 +337,7 @@ function _include_deps(self, outdata)
     return results
 end
 
--- make the complie arguments list for the precompiled header
+-- make the compile arguments list for the precompiled header
 function _compargv1_pch(self, pcheaderfile, pcoutputfile, flags)
 
     -- remove "-Yuxxx.h" and "-Fpxxx.pch"
@@ -354,11 +355,11 @@ function _compargv1_pch(self, pcheaderfile, pcoutputfile, flags)
         table.insert(pchflags, "-TP")
     end
 
-    -- make complie arguments list
+    -- make the compile arguments list
     return self:program(), table.join("-c", "-Yc", pchflags, "-Fp" .. pcoutputfile, "-Fo" .. pcoutputfile .. ".obj", pcheaderfile)
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function _compargv1(self, sourcefile, objectfile, flags)
 
     -- precompiled header?
@@ -367,11 +368,11 @@ function _compargv1(self, sourcefile, objectfile, flags)
         return _compargv1_pch(self, sourcefile, objectfile, flags)
     end
 
-    -- make complie arguments list
+    -- make the compile arguments list
     return self:program(), table.join("-c", flags, "-Fo" .. objectfile, sourcefile)
 end
 
--- complie the source file
+-- compile the source file
 function _compile1(self, sourcefile, objectfile, dependinfo, flags)
 
     -- ensure the object directory
@@ -390,24 +391,61 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
             if dependinfo then
                 compflags = table.join(flags, "-showIncludes")
             end
-            return os.iorunv(_compargv1(self, sourcefile, objectfile, compflags))
+
+            -- use vstool to compile and enable vs_unicode_output @see https://github.com/xmake-io/xmake/issues/528
+            return vstool.iorunv(_compargv1(self, sourcefile, objectfile, compflags))
         end,
-        
         catch
         {
             function (errors)
+
+                -- use cl/stdout as errors first from os.iorunv()
+                if type(errors) == "table" then
+                    local errs = errors.stdout or ""
+                    if #errs:trim() == 0 then
+                        errs = errors.stderr or ""
+                    end
+                    errors = errs
+                end
 
                 -- try removing the old object file for forcing to rebuild this source file
                 os.tryrm(objectfile)
 
                 -- filter includes notes: "Note: including file: xxx.h", @note maybe not english language
                 local results = ""
-                for _, line in ipairs(errors:split("\r\n")) do
-                    if not _include_note(self, line) then 
+                for _, line in ipairs(tostring(errors):split("\n", {plain = true})) do
+                    line = line:rtrim()
+                    if not _include_note(self, line) then
                         results = results .. line .. "\r\n"
                     end
                 end
                 os.raise(results)
+            end
+        },
+        finally
+        {
+            function (ok, outdata, errdata)
+
+                -- show warnings?
+                if ok and (option.get("diagnosis") or option.get("warning")) then
+                    local output = outdata or ""
+                    if #output:trim() == 0 then
+                        output = errdata or ""
+                    end
+                    if #output:trim() > 0 then
+                        local lines = {}
+                        for _, line in ipairs(output:split("\n", {plain = true})) do
+                            line = line:rtrim()
+                            if line:match("warning %a+[0-9]+%s*:") then
+                                table.insert(lines, line)
+                            end
+                        end
+                        if #lines > 0 then
+                            local warnings = table.concat(table.slice(lines, 1, ifelse(#lines > 8, 8, #lines)), "\r\n")
+                            cprint("${color.warning}%s", warnings)
+                        end
+                    end
+                end
             end
         }
     }
@@ -419,7 +457,7 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
     end
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function compargv(self, sourcefiles, objectfile, flags)
 
     -- only support single source file now
@@ -429,7 +467,7 @@ function compargv(self, sourcefiles, objectfile, flags)
     return _compargv1(self, sourcefiles, objectfile, flags)
 end
 
--- complie the source file
+-- compile the source file
 function compile(self, sourcefiles, objectfile, dependinfo, flags)
 
     -- only support single source file now
@@ -438,5 +476,4 @@ function compile(self, sourcefiles, objectfile, dependinfo, flags)
     -- for only single source file
     _compile1(self, sourcefiles, objectfile, dependinfo, flags)
 end
-
 

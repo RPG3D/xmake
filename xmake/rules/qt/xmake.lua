@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -28,9 +24,14 @@ rule("qt.static")
     -- add rules
     add_deps("qt.qrc", "qt.ui", "qt.moc")
 
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", "static")
+    end)
+
     -- after load
     after_load(function (target)
-        import("load")(target, {kind = "static", frameworks = {"QtCore"}})
+        import("load")(target, {frameworks = {"QtCore"}})
     end)
 
 -- define rule: qt shared library
@@ -39,9 +40,14 @@ rule("qt.shared")
     -- add rules
     add_deps("qt.qrc", "qt.ui", "qt.moc")
 
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", "shared")
+    end)
+
     -- after load
     after_load(function (target)
-        import("load")(target, {kind = "shared", frameworks = {"QtCore"}})
+        import("load")(target, {frameworks = {"QtCore"}})
     end)
 
 -- define rule: qt console
@@ -50,29 +56,116 @@ rule("qt.console")
     -- add rules
     add_deps("qt.qrc", "qt.ui", "qt.moc")
 
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", "binary")
+    end)
+
     -- after load
     after_load(function (target)
-        import("load")(target, {kind = "binary", frameworks = {"QtCore"}})
+        import("load")(target, {frameworks = {"QtCore"}})
     end)
+
+-- define rule: qt widgetapp
+rule("qt.widgetapp")
+
+    -- add rules
+    add_deps("qt.ui", "qt.moc")
+
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", is_plat("android") and "shared" or "binary")
+    end)
+
+    -- after load
+    after_load(function (target)
+        import("load")(target, {gui = true, frameworks = {"QtGui", "QtWidgets", "QtCore"}})
+    end)
+
+    -- deploy application for android after build
+    after_build("android", "deploy.android")
+
+    -- install application for android
+    on_install("android", "install.android")
+
+-- define rule: qt static widgetapp
+rule("qt.widgetapp_static")
+
+    -- add rules
+    add_deps("qt.ui", "qt.moc")
+
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", is_plat("android") and "shared" or "binary")
+    end)
+
+    -- after load
+    after_load(function (target)
+        local plugins = {}
+        if is_plat("macosx") then
+            plugins.QCocoaIntegrationPlugin = {linkdirs = "plugins/platforms", links = {"qcocoa", "Qt5PrintSupport", "Qt5PlatformSupport", "cups"}}
+        elseif is_plat("windows") then
+            plugins.QWindowsIntegrationPlugin = {linkdirs = "plugins/platforms", links = {"Qt5PrintSupport", "Qt5PlatformSupport", "qwindows"}}
+        end
+        import("load")(target, {gui = true, plugins = plugins, frameworks = {"QtGui", "QtWidgets", "QtCore"}})
+    end)
+
+    -- deploy application for android after build
+    after_build("android", "deploy.android")
+
+    -- install application for android
+    on_install("android", "install.android")
+
+-- define rule: qt quickapp
+rule("qt.quickapp")
+
+    -- add rules
+    add_deps("qt.qrc", "qt.moc")
+
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", is_plat("android") and "shared" or "binary")
+    end)
+
+    -- after load
+    after_load(function (target)
+        import("load")(target, {gui = true, frameworks = {"QtGui", "QtQuick", "QtQml", "QtCore"}})
+    end)
+
+    -- deploy application for android after build
+    after_build("android", "deploy.android")
+
+    -- install application for android
+    on_install("android", "install.android")
+
+-- define rule: qt static quickapp
+rule("qt.quickapp_static")
+
+    -- add rules
+    add_deps("qt.qrc", "qt.moc")
+
+    -- we must set kind before target.on_load(), may we will use target in on_load()
+    before_load(function (target)
+        target:set("kind", is_plat("android") and "shared" or "binary")
+    end)
+
+    -- after load
+    after_load(function (target)
+        local plugins = {}
+        if is_plat("macosx") then
+            plugins.QCocoaIntegrationPlugin = {linkdirs = "plugins/platforms", links = {"qcocoa", "Qt5PrintSupport", "Qt5PlatformSupport", "Qt5Widgets", "cups"}}
+        elseif is_plat("windows") then
+            plugins.QWindowsIntegrationPlugin = {linkdirs = "plugins/platforms", links = {"Qt5PrintSupport", "Qt5PlatformSupport", "Qt5Widgets", "qwindows"}}
+        end
+        import("load")(target, {gui = true, plugins = plugins, frameworks = {"QtGui", "QtQuick", "QtQml", "QtCore"}})
+    end)
+
+    -- deploy application for android after build
+    after_build("android", "deploy.android")
+
+    -- install application for android
+    on_install("android", "install.android")
 
 -- define rule: qt application
 rule("qt.application")
-
-    -- add rules
-    add_deps("qt.qrc", "qt.ui", "qt.moc")
-
-    -- after load
-    after_load(function (target)
-
-        -- load common flags to target
-        import("load")(target, {kind = "binary", frameworks = {"QtGui", "QtQml", "QtNetwork", "QtCore"}})
-
-        -- add -subsystem:windows for windows platform
-        if is_plat("windows") then
-            target:add("defines", "_WINDOWS")
-            target:add("ldflags", "-subsystem:windows", "-entry:mainCRTStartup", {force = true})
-        elseif is_plat("mingw") then
-            target:add("ldflags", "-Wl,-subsystem:windows", {force = true})
-        end
-    end)
-
+    add_deps("qt.quickapp")

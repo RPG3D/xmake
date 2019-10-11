@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,24 +26,7 @@ import("core.project.config")
 import("core.base.global")
 import("core.project.project")
 import("core.platform.platform")
-
--- remove the given files or directories
-function _remove(filedirs)
-
-    -- done
-    for _, filedir in ipairs(filedirs) do
-
-        -- remove it first
-        os.tryrm(filedir)
- 
-        -- remove it if the parent directory is empty
-        local parentdir = path.directory(filedir)
-        while parentdir and os.isdir(parentdir) and os.emptydir(parentdir) do
-            os.tryrm(parentdir)
-            parentdir = path.directory(parentdir)
-        end
-    end
-end
+import("private.action.clean.remove_files")
 
 -- do clean target 
 function _do_clean_target(target)
@@ -58,33 +37,46 @@ function _do_clean_target(target)
     end
 
     -- remove the target file 
-    _remove(target:targetfile()) 
-
-    -- remove the target dependent file if exists
-    _remove(target:dependfile()) 
+    remove_files(target:targetfile()) 
 
     -- remove the symbol file 
-    _remove(target:symbolfile()) 
+    remove_files(target:symbolfile()) 
 
     -- remove the c/c++ precompiled header file 
-    _remove(target:pcoutputfile("c")) 
-    _remove(target:pcoutputfile("cxx")) 
-
-    -- remove the object files 
-    _remove(target:objectfiles())
-
-    -- remove the depend files 
-    _remove(target:dependfiles())
+    remove_files(target:pcoutputfile("c")) 
+    remove_files(target:pcoutputfile("cxx")) 
 
     -- TODO remove the header files (deprecated)
     local _, dstheaders = target:headers()
-    _remove(dstheaders) 
+    remove_files(dstheaders) 
+
+    -- remove the clean files
+    remove_files(target:get("cleanfiles"))
 
     -- remove all?
     if option.get("all") then 
 
-        -- remove the config.h file
-        _remove(target:configheader()) 
+        -- TODO remove the config.h file (deprecated)
+        remove_files(target:configheader()) 
+
+        -- remove all dependent files for each platform
+        remove_files(target:dependir({root = true}))
+
+        -- remove all object files for each platform
+        remove_files(target:objectdir({root = true}))
+
+        -- remove all autogen files for each platform
+        remove_files(target:autogendir({root = true}))
+    else
+
+        -- remove dependent files for the current platform
+        remove_files(target:dependir())
+
+        -- remove object files for the current platform
+        remove_files(target:objectdir())
+
+        -- remove autogen files for the current platform
+        remove_files(target:autogendir())
     end
 end
 
@@ -210,12 +202,15 @@ function _clean(targetname)
     if option.get("all") then 
 
         -- remove the configure directory
-        _remove(config.directory())
+        remove_files(config.directory())
     end
 end
 
 -- main
 function main()
+
+    -- lock the whole project
+    project.lock()
 
     -- get the target name
     local targetname = option.get("target")
@@ -231,6 +226,9 @@ function main()
 
     -- clean the current target
     _clean(targetname) 
+
+    -- unlock the whole project
+    project.unlock()
 
     -- leave project directory
     os.cd(oldir)

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -24,8 +20,8 @@
 
 -- imports
 import("core.base.option")
-import("core.project.config")
 import("core.base.global")
+import("core.project.config")
 import("core.project.project")
 import("core.platform.platform")
 import("core.project.cache")
@@ -45,7 +41,7 @@ function _option_filter(name)
     ,   root        = true
     ,   yes         = true
     ,   quiet       = true
-    ,   profile     = true
+    ,   confirm     = true
     ,   project     = true
     ,   verbose     = true
     ,   diagnosis   = true
@@ -150,31 +146,26 @@ function main()
     _g.configured = true
 
     -- scan project and generate it if xmake.lua not exists
+    local autogen = false
     if not os.isfile(project.file()) then
-
-        -- need some tips?
-        local autogen = true
-        if not option.get("quiet") and not option.get("yes") then
-
-            -- show tips
-            cprint("${bright color.warning}note: ${clear}xmake.lua not found, try generating it (pass -y to skip confirm)?")
-            cprint("please input: n (y/n)")
-
-            -- get answer
-            io.flush()
-            if io.read() ~= 'y' then
-                autogen = false
-            end
-        end
-
-        -- do not generate it
-        if not autogen then
+        autogen = utils.confirm({default = false, description = "xmake.lua not found, try generating it"})
+        if autogen then
+            scangen()
+        else
             os.exit() 
         end
-
-        -- scan and generate it automatically
-        scangen()
     end
+
+    -- check the working directory
+    if not option.get("project") and not option.get("file") and os.isdir(os.projectdir()) then
+        if path.translate(os.projectdir()) ~= path.translate(os.workingdir()) then
+            utils.warning([[You are working in the project directory(%s) and you can also 
+force to build in current directory via run `xmake -P .`]], os.projectdir())
+        end
+    end
+
+    -- lock the whole project
+    project.lock()
 
     -- enter menu config
     if option.get("menu") then
@@ -204,7 +195,7 @@ function main()
     -- override configure from the options or cache 
     local options_changed = false
     local options_history = {}
-    if not option.get("clean") then
+    if not option.get("clean") and not autogen then
         options_history = configcache:get("options_" .. targetname) or {}
         options = options or options_history
     end
@@ -244,14 +235,14 @@ function main()
     -- merge the project options after default options
     for name, value in pairs(project.get("config")) do
         value = table.unwrap(value)
-        assert(type(value) == "string", "set_config(%s): too much values", name)
+        assert(type(value) == "string" or type(value) == "boolean" or type(value) == "number", "set_config(%s): unsupported value type(%s)", name, type(value))
         if not config.readonly(name) then
             config.set(name, value)
         end
     end
 
     -- merge the checked configure 
-    local recheck = _need_check(options_changed or not configcache_loaded)
+    local recheck = _need_check(options_changed or not configcache_loaded or autogen)
     if recheck then
 
         -- clear detect cache
@@ -308,4 +299,7 @@ function main()
 
     -- flush config cache
     configcache:flush()
+
+    -- unlock the whole project
+    project.unlock()
 end

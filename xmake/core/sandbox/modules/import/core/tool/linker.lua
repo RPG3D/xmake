@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -66,7 +62,7 @@ end
 -- @param targetkind    the target kind
 -- @param sourcekinds   the source kinds
 -- @param opt           the argument options (contain all the linker attributes of target), 
---                      .e.g {target = ..., targetkind = "static", config = {cxflags = "", defines = "", includedirs = "", ...}}
+--                      e.g. {target = ..., targetkind = "static", config = {cxflags = "", defines = "", includedirs = "", ...}}
 --
 function sandbox_core_tool_linker.linkflags(targetkind, sourcekinds, opt)
 

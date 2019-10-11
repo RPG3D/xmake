@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -310,9 +306,9 @@ end
 
 -- get the platform tool from the kind
 --
--- .e.g cc, cxx, mm, mxx, as, ar, ld, sh, ..
+-- e.g. cc, cxx, mm, mxx, as, ar, ld, sh, ..
 --
-function platform.tool(toolkind)
+function platform.tool(toolkind, plat)
 
     -- attempt to get program from config first
     local program = config.get(toolkind)
@@ -320,7 +316,7 @@ function platform.tool(toolkind)
     if program == nil then 
 
         -- get the current platform 
-        local instance, errors = platform.load()
+        local instance, errors = platform.load(plat)
         if not instance then
             os.raise(errors)
         end
@@ -336,8 +332,8 @@ function platform.tool(toolkind)
         toolname = config.get("__toolname_" .. toolkind)
     end
 
-    -- contain toolname? parse it, .e.g 'gcc@xxxx.exe'
-    if program then
+    -- contain toolname? parse it, e.g. 'gcc@xxxx.exe'
+    if program and type(program) == "string" then
         local pos = program:find('@', 1, true)
         if pos then
             toolname = program:sub(1, pos - 1)

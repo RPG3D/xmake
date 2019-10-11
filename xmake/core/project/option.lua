@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -47,9 +43,10 @@ local sandbox_module = require("sandbox/modules/import/core/sandbox/module")
 
 -- new an instance
 function _instance.new(name, info)
-    local instance = table.inherit(_instance)
-    instance._NAME = name
-    instance._INFO = info
+    local instance    = table.inherit(_instance)
+    instance._NAME    = name
+    instance._INFO    = info
+    instance._CACHEID = 1
     return instance
 end
 
@@ -77,7 +74,7 @@ function _instance:_do_check()
     self._check_cxsnippets = self._check_cxsnippets or sandbox_module.import("lib.detect.check_cxsnippets", {anonymous = true})
 
     -- check for c and c++
-    local passed = false
+    local passed = nil
     for _, kind in ipairs({"c", "cxx"}) do
 
         -- get conditions
@@ -111,6 +108,8 @@ function _instance:_do_check()
             -- passed?
             if results_or_errors then
                 passed = true
+            else
+                passed = false
                 break
             end
         end
@@ -181,6 +180,11 @@ function _instance:_check()
 
     -- flush io buffer to update progress info
     io.flush()
+end
+
+-- invalidate the previous cache key
+function _instance:_invalidate()
+    self._CACHEID = self._CACHEID + 1
 end
 
 -- attempt to check option 
@@ -260,7 +264,7 @@ end
 -- enable or disable this option
 --
 -- @param enabled   enable option?
--- @param opt       the argument options, .e.g {readonly = true, force = false}
+-- @param opt       the argument options, e.g. {readonly = true, force = false}
 --
 function _instance:enable(enabled, opt)
 
@@ -298,16 +302,19 @@ end
 -- set the value to the option info
 function _instance:set(name, ...)
     self._INFO:apival_set(name, ...)
+    self:_invalidate()
 end
 
 -- add the value to the option info
 function _instance:add(name, ...)
     self._INFO:apival_add(name, ...)
+    self:_invalidate()
 end
 
 -- remove the value to the option info
 function _instance:del(name, ...)
     self._INFO:apival_del(name, ...)
+    self:_invalidate()
 end
 
 -- get the extra configuration
@@ -336,6 +343,11 @@ end
 -- get the option name
 function _instance:name()
     return self._NAME
+end
+
+-- get the cache key 
+function _instance:cachekey()
+    return string.format("%s_%d", tostring(self), self._CACHEID)
 end
 
 -- get xxx_script

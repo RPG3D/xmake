@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -43,7 +39,7 @@ task("lua")
             for _, file in ipairs(files) do
                 print("    " .. path.basename(file))
             end
-            return 
+            return
         end
 
         -- run command?
@@ -54,18 +50,20 @@ task("lua")
             script = tmpfile
         end
 
-        -- get script 
+        -- get script
         if script then
 
             -- import and run script
-            if os.isfile(script) then
+            if path.extension(script) == ".lua" and os.isfile(script) then
 
                 -- run the given lua script file (xmake lua /tmp/script.lua)
+                vprint("runing given lua script file: %s", path.relative(script))
                 import(path.basename(script), {rootdir = path.directory(script), anonymous = true})(unpack(option.get("arguments") or {}))
 
             elseif os.isfile(path.join(os.scriptdir(), "scripts", script .. ".lua")) then
 
                 -- run builtin lua script (xmake lua echo "hello xmake")
+                vprint("runing builtin lua script: %s", script)
                 import("scripts." .. script, {anonymous = true})(unpack(option.get("arguments") or {}))
             else
 
@@ -77,13 +75,17 @@ task("lua")
                         break
                     end
                 end
+                local result = nil
                 if object then
                     -- run builtin modules (xmake lua core.xxx.xxx)
-                    print(object(unpack(option.get("arguments") or {})))
+                    vprint("runing builtin module: %s", script)
+                    result = object(unpack(option.get("arguments") or {}))
                 else
                     -- run imported modules (xmake lua core.xxx.xxx)
-                    print(import(script, {anonymous = true})(unpack(option.get("arguments") or {})))
+                    vprint("runing imported module: %s", script)
+                    result = import(script, {anonymous = true})(unpack(option.get("arguments") or {}))
                 end
+                if result ~= nil then utils.dump(result) end
             end
         else
             -- enter interactive mode
@@ -109,7 +111,7 @@ task("lua")
                     {'l', "list",       "k",  nil,          "List all scripts."                              }
                 ,   {'c', "command",    "k",  nil,          "Run script as command"                          }
                 ,   {nil, "script",     "v",  nil,          "Run the given lua script name, file or module and enter interactive mode if no given script.",
-                                                            ".e.g",
+                                                            "e.g.",
                                                             "    - xmake lua (enter interactive mode)",
                                                             "    - xmake lua /tmp/script.lua",
                                                             "    - xmake lua echo 'hello xmake'",

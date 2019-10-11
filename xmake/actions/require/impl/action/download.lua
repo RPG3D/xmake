@@ -1,12 +1,8 @@
 --!The Make-like download Utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -51,7 +47,7 @@ function _checkout(package, url, sourcedir, url_alias)
 
     -- use previous source directory if exists
     local packagedir = path.join(sourcedir, package:name())
-    if os.isdir(packagedir) and not option.get("force") then
+    if os.isdir(packagedir) then
 
         -- clean the previous build files
         git.clean({repodir = packagedir, force = true})
@@ -64,19 +60,19 @@ function _checkout(package, url, sourcedir, url_alias)
 
     -- download package from branches?
     packagedir = path.join(sourcedir .. ".tmp", package:name())
-    if package:version_from("branches") then
+    if package:branch() then
 
         -- only shadow clone this branch 
-        git.clone(url, {depth = 1, branch = package:version_str(), outputdir = packagedir})
+        git.clone(url, {depth = 1, recursive = true, branch = package:branch(), outputdir = packagedir})
 
-    -- download package from revision, tag or version?
+    -- download package from revision or tag?
     else
 
         -- clone whole history and tags
-        git.clone(url, {outputdir = packagedir})
+        git.clone(url, {outputdir = packagedir, recursive = true})
 
         -- attempt to checkout the given version
-        git.checkout(package:revision(url_alias) or package:version_str(), {repodir = packagedir})
+        git.checkout(package:revision(url_alias) or package:tag(), {repodir = packagedir})
     end
  
     -- move to source directory
@@ -100,7 +96,7 @@ function _download(package, url, sourcedir, url_alias, url_excludes)
 
     -- the package file have been downloaded?
     local cached = true
-    if option.get("force") or not os.isfile(packagefile) or sourcehash ~= hash.sha256(packagefile) then
+    if not os.isfile(packagefile) or sourcehash ~= hash.sha256(packagefile) then
 
         -- no cached
         cached = false
@@ -108,8 +104,12 @@ function _download(package, url, sourcedir, url_alias, url_excludes)
         -- attempt to remove package file first
         os.tryrm(packagefile)
 
-        -- download package file
-        http.download(url, packagefile)
+        -- download or copy package file
+        if os.isfile(url) then
+            os.cp(url, packagefile)
+        else
+            http.download(url, packagefile)
+        end
 
         -- check hash
         if sourcehash and sourcehash ~= hash.sha256(packagefile) then
@@ -153,7 +153,7 @@ function _urls(package)
             table.insert(urls[2], url)
         end
     end
-    if package:version_from("tags", "branches") then
+    if package:gitref() then
         return table.join(urls[1], urls[2]) 
     else
         return table.join(urls[2], urls[1])
@@ -172,11 +172,15 @@ function main(package)
     -- enter the working directory
     local oldir = os.cd(workdir)
 
+    -- lock this package
+    package:lock()
+
     -- get urls
     local urls = _urls(package)
     assert(#urls > 0, "cannot get url of package(%s)", package:name())
 
     -- download package from urls
+    local ok = false
     for idx, url in ipairs(urls) do
 
         -- get url alias
@@ -189,7 +193,7 @@ function main(package)
         url = filter.handle(url, package)
 
         -- download url
-        local ok = try
+        ok = try
         {
             function ()
 
@@ -209,12 +213,8 @@ function main(package)
                 function (errors)
 
                     -- show or save the last errors
-                    if errors then
-                        if (option.get("verbose") or option.get("diagnosis")) then
-                            cprint("${dim color.error}error: ${clear}%s", errors)
-                        else
-                            io.writefile(path.join(package:installdir("logs"), "download.txt"), errors)
-                        end
+                    if errors and (option.get("verbose") or option.get("diagnosis")) then
+                        cprint("${dim color.error}error: ${clear}%s", errors)
                     end
 
                     -- trace
@@ -226,7 +226,7 @@ function main(package)
                     end
 
                     -- failed? break it
-                    if idx == #urls and not package:requireinfo().optional then
+                    if idx == #urls and not package:optional() then
                         raise("download failed!")
                     end
                 end
@@ -237,8 +237,12 @@ function main(package)
         if ok then break end
     end
 
+    -- unlock this package
+    package:unlock()
+
     -- leave working directory
     os.cd(oldir)
+    return ok
 end
 
 

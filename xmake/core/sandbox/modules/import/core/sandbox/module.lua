@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -47,9 +43,9 @@ function core_sandbox_module._modulepath(name)
     local modulepath = name:gsub(".", function(c)
         if c == '.' then
             if startdots then
-                return ".." .. path.seperator()
+                return ".." .. path.sep()
             else
-                return path.seperator()
+                return path.sep()
             end
         else
             startdots = false
@@ -93,7 +89,7 @@ function core_sandbox_module._loadfile(filepath, instance)
     end
 
     -- load module without sandbox
-    local ok, result = xpcall(script, debug.traceback)
+    local ok, result = utils.trycall(script)
     if not ok then
         return nil, result
     end
@@ -329,12 +325,12 @@ end
 
 -- import module
 --
--- @param name      the module name, .e.g core.platform
--- @param opt       the argument options, .e.g {alias = "", nolocal = true, rootdir = "", try = false, inherit = false, anonymous = false, nocache = false}
+-- @param name      the module name, e.g. core.platform
+-- @param opt       the argument options, e.g. {alias = "", nolocal = true, rootdir = "", try = false, inherit = false, anonymous = false, nocache = false}
 --
 -- @return          the module instance
 --
--- .e.g 
+-- e.g. 
 --
 -- import("core.platform")
 -- => platform
@@ -455,7 +451,7 @@ function core_sandbox_module.import(name, opt)
         --
         -- we can access the all scope members of _super in the child module
         --
-        -- .e.g
+        -- e.g.
         --
         -- import("core.platform.xxx", {inherit = true})
         --

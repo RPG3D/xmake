@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -89,7 +85,7 @@ end
 --
 -- @param name  the name
 -- @param value the value
--- @param opt   the argument options, .e.g {readonly = false, force = false}
+-- @param opt   the argument options, e.g. {readonly = false, force = false}
 --
 function config.set(name, value, opt)
 
@@ -149,12 +145,13 @@ function config.buildir()
     return buildir
 end
 
--- get the configure directory
+-- get the configure directory on the current host/arch platform
 function config.directory()
-    if config._ROOTDIR == nil then
-        config._ROOTDIR = os.getenv("XMAKE_CONFIGDIR") or path.join(os.projectdir(), ".xmake", os.host(), os.arch())
+    if config._DIRECTORY == nil then
+        local rootdir = os.getenv("XMAKE_CONFIGDIR") or os.projectdir()
+        config._DIRECTORY = path.join(rootdir, ".xmake", os.host(), os.arch())
     end
-    return config._ROOTDIR
+    return config._DIRECTORY
 end
 
 -- load the project configure
@@ -248,7 +245,7 @@ function config.is_plat(...)
     return config.is_value("plat", ...)
 end
 
--- the current platform is belong to the given architectures?
+-- the current architecture is belong to the given architectures?
 function config.is_arch(...)
     return config.is_value("arch", ...)
 end

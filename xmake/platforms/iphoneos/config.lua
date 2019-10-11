@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -34,7 +30,7 @@ import("private.platform.check_toolchain")
 function _toolchains()
 
     -- init architecture
-    local arch = config.get("arch")
+    local arch = config.get("arch") or os.arch()
     local simulator = (arch == "i386" or arch == "x86_64")
 
     -- init cross
@@ -42,6 +38,7 @@ function _toolchains()
 
     -- init toolchains
     local cc         = toolchain("the c compiler")
+    local cpp        = toolchain("the c preprocessor")
     local cxx        = toolchain("the c++ compiler")
     local ld         = toolchain("the linker")
     local sh         = toolchain("the shared library linker")
@@ -53,11 +50,14 @@ function _toolchains()
     local sc         = toolchain("the swift compiler")
     local sc_ld      = toolchain("the swift linker")
     local sc_sh      = toolchain("the swift shared library linker")
-    local toolchains = {cc = cc, cxx = cxx, as = as, ld = ld, sh = sh, ar = ar, ex = ex, 
+    local toolchains = {cc = cc, cpp = cpp, cxx = cxx, as = as, ld = ld, sh = sh, ar = ar, ex = ex, 
                         mm = mm, mxx = mxx, sc = sc, ["sc-ld"] = sc_ld, ["sc-sh"] = sc_sh}
 
     -- init the c compiler
     cc:add({name = "clang", cross = cross})
+
+    -- init the c preprocessor
+    cpp:add({name = "clang -arch " .. arch .. " -E", cross = cross})
 
     -- init the c++ compiler
     cxx:add({name = "clang", cross = cross})
@@ -104,7 +104,7 @@ function main(platform, name)
 
     -- only check the given config name?
     if name then
-        local toolchain = singleton.get("iphoneos.toolchains", _toolchains)[name]
+        local toolchain = singleton.get("iphoneos.toolchains." .. (config.get("arch") or os.arch()), _toolchains)[name]
         if toolchain then
             check_toolchain(config, name, toolchain)
         end

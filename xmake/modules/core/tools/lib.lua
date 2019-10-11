@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -22,6 +18,9 @@
 -- @file        lib.lua
 --
 
+-- imports
+import("private.tools.vstool")
+
 -- extract the static library to object directory
 function extract(self, libraryfile, objectdir)
 
@@ -29,7 +28,7 @@ function extract(self, libraryfile, objectdir)
     os.mkdir(objectdir)
 
     -- list object files 
-    local objectfiles = os.iorunv(self:program(), {"-nologo", "-list", libraryfile})
+    local objectfiles = vstool.iorunv(self:program(), {"-nologo", "-list", libraryfile})
 
     -- extrace all object files
     for _, objectfile in ipairs(objectfiles:split('\n')) do
@@ -51,7 +50,7 @@ function extract(self, libraryfile, objectdir)
             end
 
             -- extract it
-            os.runv(self:program(), {"-nologo", "-extract:" .. objectfile, "-out:" .. outputfile, libraryfile})
+            vstool.runv(self:program(), {"-nologo", "-extract:" .. objectfile, "-out:" .. outputfile, libraryfile})
         end
     end
 end

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -78,12 +74,12 @@ end
 
 -- select required version from versions, tags and branches
 --
--- .e.g
+-- e.g.
 --
 -- local version, source = semver.select(">=1.5.0 <1.6", {"1.5.0", "1.5.1"}, {"v1.5.0", ..}, {"master", "dev"})
 --
 -- @version     the selected version number
--- @source      the version source, .e.g versions, tags, branchs
+-- @source      the version source, e.g. versions, tags, branchs
 --
 function sandbox_core_base_semver.select(range, versions, tags, branches)
     local verinfo, errors = semver.select(range, table.wrap(versions), table.wrap(tags), table.wrap(branches))

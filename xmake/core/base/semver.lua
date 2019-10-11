@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -40,7 +36,7 @@ function _instance:get(name)
     end
 end
 
--- get the major version
+-- get the major version, e.g. v{major}.{minor}.{patch}
 function _instance:major()
     return self:get("major")
 end
@@ -55,12 +51,34 @@ function _instance:patch()
     return self:get("patch")
 end
 
+-- get the build version, e.g. v1.0.1+{build}
+function _instance:build()
+    return self:get("build")
+end
+
+-- get the prerelease version, e.g. v1.0.1-{prerelease}
+function _instance:prerelease()
+    return self:get("prerelease")
+end
+
 -- get the raw version string
 function _instance:rawstr()
     return self:get("raw")
 end
 
--- satisfies the given semantic version(.e.g '> 1.0 < 2.0', '~1.5')?
+-- get the short version string
+function _instance:shortstr()
+    local str = self:major()
+    if self:minor() then
+        str = str .. "." .. self:minor()
+    end
+    if self:patch() then
+        str = str .. "." .. self:patch()
+    end
+    return str
+end
+
+-- satisfies the given semantic version(e.g. '> 1.0 < 2.0', '~1.5')?
 function _instance:satisfies(version)
     return semver.satisfies(self:rawstr(), version) 
 end

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -29,7 +25,7 @@ rule("qt.moc")
     add_deps("qt.env")
 
     -- set extensions
-    set_extensions(".h")
+    set_extensions(".h", ".hpp")
 
     -- before load
     before_load(function (target)
@@ -54,7 +50,7 @@ rule("qt.moc")
         import("core.project.depend")
 
         -- get c++ source file for moc
-        local sourcefile_moc = path.join(config.buildir(), ".qt", "moc", target:name(), "moc_" .. path.basename(headerfile_moc) .. ".cpp")
+        local sourcefile_moc = path.join(target:autogendir(), "rules", "qt", "moc", "moc_" .. path.basename(headerfile_moc) .. ".cpp")
 
         -- get object file
         local objectfile = target:objectfile(sourcefile_moc)
@@ -67,9 +63,6 @@ rule("qt.moc")
 
         -- add objectfile
         table.insert(target:objectfiles(), objectfile)
-
-        -- add clean files
-        target:data_add("qt.cleanfiles", {sourcefile_moc, objectfile})
 
         -- load dependent info 
         local dependfile = target:dependfile(objectfile)
@@ -99,11 +92,10 @@ rule("qt.moc")
 
         -- compile c++ source file for moc
         dependinfo.files = {}
-        compinst:compile(sourcefile_moc, objectfile, {dependinfo = dependinfo, compflags = compflags})
+        assert(compinst:compile(sourcefile_moc, objectfile, {dependinfo = dependinfo, compflags = compflags}))
 
         -- update files and values to the dependent file
         dependinfo.values = depvalues
         table.insert(dependinfo.files, headerfile_moc)
         depend.save(dependinfo, dependfile)
     end)
-

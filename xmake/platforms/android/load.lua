@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,14 +26,13 @@ function main(platform)
 
     -- init flags
     local arch = config.get("arch")
-    if arch:startswith("arm64") then
-        platform:add("ldflags", "-llog")
-        platform:add("shflags", "-llog")
-    else
+    platform:add("ldflags", "-llog")
+    platform:add("shflags", "-llog")
+    if arch and (arch == "armv5te" or arch == "armv7-a") then
         platform:add("cxflags", "-mthumb")
         platform:add("asflags", "-mthumb")
-        platform:add("ldflags", "-llog", "-mthumb")
-        platform:add("shflags", "-llog", "-mthumb")
+        platform:add("ldflags", "-mthumb")
+        platform:add("shflags", "-mthumb")
     end
 
     -- use llvm directory? e.g. android-ndk/toolchains/llvm/prebuilt/darwin-x86_64/bin
@@ -89,6 +84,19 @@ function main(platform)
     local ndk_sdkver = config.get("ndk_sdkver")
     if ndk and ndk_sdkver then
 
+        -- the sysroot archs
+        local sysroot_archs = 
+        {
+            ["armv5te"]     = "arch-arm"
+        ,   ["armv7-a"]     = "arch-arm"
+        ,   ["arm64-v8a"]   = "arch-arm64"
+        ,   i386            = "arch-x86"
+        ,   x86_64          = "arch-x86_64"
+        ,   mips            = "arch-mips"
+        ,   mips64          = "arch-mips64"
+        }
+        local sysroot_arch = sysroot_archs[arch]
+
         -- add sysroot
         --
         -- @see https://android.googlesource.com/platform/ndk/+/master/docs/UnifiedHeaders.md
@@ -115,8 +123,10 @@ function main(platform)
                 ["armv5te"]     = "arm-linux-androideabi"
             ,   ["armv7-a"]     = "arm-linux-androideabi"
             ,   ["arm64-v8a"]   = "aarch64-linux-android"
-            ,   ["i386"]        = "i686-linux-android"
-            ,   ["x86_64"]      = "x86_64-linux-android"
+            ,   i386            = "i686-linux-android"
+            ,   x86_64          = "x86_64-linux-android"
+            ,   mips            = "mips-linux-android"
+            ,   mips64          = "mips64-linux-android"
             }
             platform:add("cxflags", "-D__ANDROID_API__=" .. ndk_sdkver)
             platform:add("asflags", "-D__ANDROID_API__=" .. ndk_sdkver)
@@ -127,36 +137,57 @@ function main(platform)
             platform:add("cxxflags","-isystem " .. path.join(ndk_sysroot_be_r14, "usr", "include", triples[arch]))
             platform:add("asflags", "-isystem " .. path.join(ndk_sysroot_be_r14, "usr", "include", triples[arch]))
         else
-            if arch:startswith("arm64") then
-                platform:add("cflags",   format("--sysroot=%s/arch-arm64", ndk_sdkdir))
-                platform:add("cxxflags", format("--sysroot=%s/arch-arm64", ndk_sdkdir))
-                platform:add("asflags",  format("--sysroot=%s/arch-arm64", ndk_sdkdir))
-            else
-                platform:add("cflags",   format("--sysroot=%s/arch-arm", ndk_sdkdir))
-                platform:add("cxxflags", format("--sysroot=%s/arch-arm", ndk_sdkdir))
-                platform:add("asflags",  format("--sysroot=%s/arch-arm", ndk_sdkdir))
+            if sysroot_arch then
+                platform:add("cflags",   format("--sysroot=%s/%s", ndk_sdkdir, sysroot_arch))
+                platform:add("cxxflags", format("--sysroot=%s/%s", ndk_sdkdir, sysroot_arch))
+                platform:add("asflags",  format("--sysroot=%s/%s", ndk_sdkdir, sysroot_arch))
             end
         end
-        if arch:startswith("arm64") then
-            platform:add("ldflags", format("--sysroot=%s/arch-arm64", ndk_sdkdir))
-            platform:add("shflags", format("--sysroot=%s/arch-arm64", ndk_sdkdir))
-        else
-            platform:add("ldflags", format("--sysroot=%s/arch-arm", ndk_sdkdir))
-            platform:add("shflags", format("--sysroot=%s/arch-arm", ndk_sdkdir))
+        if sysroot_arch then
+            platform:add("ldflags", format("--sysroot=%s/%s", ndk_sdkdir, sysroot_arch))
+            platform:add("shflags", format("--sysroot=%s/%s", ndk_sdkdir, sysroot_arch))
         end
 
         -- add "-fPIE -pie" to ldflags
         platform:add("ldflags", "-fPIE")
         platform:add("ldflags", "-pie")
 
+        -- get llvm c++ stl sdk directory
+        local cxxstl_sdkdir_llvmstl = path.translate(format("%s/sources/cxx-stl/llvm-libc++", ndk))
+
+        -- get gnu c++ stl sdk directory
+        local cxxstl_sdkdir_gnustl = nil
+        if config.get("ndk_toolchains_ver") then
+            cxxstl_sdkdir_gnustl = path.translate(format("%s/sources/cxx-stl/gnu-libstdc++/%s", ndk, config.get("ndk_toolchains_ver"))) 
+        end
+
+        -- get stlport c++ sdk directory
+        local cxxstl_sdkdir_stlport = path.translate(format("%s/sources/cxx-stl/stlport", ndk))
+
         -- get c++ stl sdk directory
-        local cxxstl_sdkdir = isllvm and path.translate(format("%s/sources/cxx-stl/llvm-libc++", ndk)) or nil
-        if (cxxstl_sdkdir == nil or not os.isdir(cxxstl_sdkdir)) and config.get("ndk_toolchains_ver") then -- <= ndk r16
-            cxxstl_sdkdir = path.translate(format("%s/sources/cxx-stl/gnu-libstdc++/%s", ndk, config.get("ndk_toolchains_ver"))) 
+        local cxxstl_sdkdir = nil
+        local ndk_cxxstl = config.get("ndk_cxxstl")
+        if ndk_cxxstl then
+            if ndk_cxxstl:startswith("llvmstl") then
+                cxxstl_sdkdir = cxxstl_sdkdir_llvmstl
+            elseif ndk_cxxstl:startswith("gnustl") then
+                cxxstl_sdkdir = cxxstl_sdkdir_gnustl
+            elseif ndk_cxxstl:startswith("stlport") then
+                cxxstl_sdkdir = cxxstl_sdkdir_stlport
+            end
+        else
+            if isllvm then
+                ndk_cxxstl = "llvmstl_static"
+                cxxstl_sdkdir = cxxstl_sdkdir_llvmstl
+            end
+            if (cxxstl_sdkdir == nil or not os.isdir(cxxstl_sdkdir)) and cxxstl_sdkdir_gnustl then -- <= ndk r16
+                ndk_cxxstl = "gnustl_static"
+                cxxstl_sdkdir = cxxstl_sdkdir_gnustl
+            end
         end
 
         -- only for c++ stl
-        if cxxstl_sdkdir and os.isdir(cxxstl_sdkdir) then
+        if config.get("ndk_stdcxx") and cxxstl_sdkdir and os.isdir(cxxstl_sdkdir) then
 
             -- the toolchains archs
             local toolchains_archs = 
@@ -164,41 +195,66 @@ function main(platform)
                 ["armv5te"]     = "armeabi"
             ,   ["armv7-a"]     = "armeabi-v7a"
             ,   ["arm64-v8a"]   = "arm64-v8a"
+            ,   i386            = "x86"
+            ,   x86_64          = "x86_64"
+            ,   mips            = "mips"
+            ,   mips64          = "mips64"
             }
+            local toolchains_arch = toolchains_archs[arch]
 
-            -- add search directories for c++ stl
-            platform:add("cxxflags", format("-I%s/include", cxxstl_sdkdir))
-            if toolchains_archs[arch] then
-                platform:add("cxxflags", format("-I%s/libs/%s/include", cxxstl_sdkdir, toolchains_archs[arch]))
-                platform:add("ldflags", format("-L%s/libs/%s", cxxstl_sdkdir, toolchains_archs[arch]))
-                platform:add("shflags", format("-L%s/libs/%s", cxxstl_sdkdir, toolchains_archs[arch]))
-                
-                -- link to c++ std library
-                if cxxstl_sdkdir:find("llvm-libc++", 1, true) then
-                    platform:add("ldflags", "-lc++_static", "-lc++abi")
-                    platform:add("shflags", "-lc++_static", "-lc++abi")
-                else
-                    platform:add("ldflags", "-lgnustl_static")
-                    platform:add("shflags", "-lgnustl_static")
-                end
-                
-                -- include abi directory
-                if cxxstl_sdkdir:find("llvm-libc++", 1, true) then
-                    local abi_path = path.join(ndk, "sources", "cxx-stl", "llvm-libc++abi")
-                    local before_r13 = path.join(abi_path, "libcxxabi")
-                    local after_r13 = path.join(abi_path, "include")
-                    if os.isdir(before_r13) then
-                        platform:add("cxxflags", "-I" .. before_r13)
-                    elseif os.isdir(after_r13) then
-                        platform:add("cxxflags", "-I" .. after_r13)
-                    end
-                end
+            -- add c++ stl include and link directories
+            if toolchains_arch then
+                platform:add("ldflags", format("-L%s/libs/%s", cxxstl_sdkdir, toolchains_arch))
+                platform:add("shflags", format("-L%s/libs/%s", cxxstl_sdkdir, toolchains_arch))
             end
+            if ndk_cxxstl:startswith("llvmstl") then
+                platform:add("cxxflags", format("-I%s/include", cxxstl_sdkdir))
+                if toolchains_arch then
+                    platform:add("cxxflags", format("-I%s/libs/%s/include", cxxstl_sdkdir, toolchains_arch))
+                end
+                local abi_path = path.join(ndk, "sources", "cxx-stl", "llvm-libc++abi")
+                local before_r13 = path.join(abi_path, "libcxxabi")
+                local after_r13 = path.join(abi_path, "include")
+                if os.isdir(before_r13) then
+                    platform:add("cxxflags", "-I" .. before_r13)
+                elseif os.isdir(after_r13) then
+                    platform:add("cxxflags", "-I" .. after_r13)
+                end
+            elseif ndk_cxxstl:startswith("gnustl") then
+                platform:add("cxxflags", format("-I%s/include", cxxstl_sdkdir))
+                if toolchains_arch then
+                    platform:add("cxxflags", format("-I%s/libs/%s/include", cxxstl_sdkdir, toolchains_arch))
+                end
+            elseif ndk_cxxstl:startswith("stlport") then
+                platform:add("cxxflags", format("-I%s/stlport", cxxstl_sdkdir))
+            end
+
+            -- add c++ stl links
+            if ndk_cxxstl == "llvmstl_static" then
+                platform:add("ldflags", "-lc++_static", "-lc++abi")
+                platform:add("shflags", "-lc++_static", "-lc++abi")
+            elseif ndk_cxxstl == "llvmstl_shared" then
+                platform:add("ldflags", "-lc++_shared", "-lc++")
+                platform:add("shflags", "-lc++_shared", "-lc++")
+            elseif ndk_cxxstl == "gnustl_static" then
+                platform:add("ldflags", "-lgnustl_static")
+                platform:add("shflags", "-lgnustl_static")
+            elseif ndk_cxxstl == "gnustl_shared" then
+                platform:add("ldflags", "-lgnustl_shared")
+                platform:add("shflags", "-lgnustl_shared")
+            elseif ndk_cxxstl == "stlport_static" then
+                platform:add("ldflags", "-lstlport_static")
+                platform:add("shflags", "-lstlport_static")
+            elseif ndk_cxxstl == "stlport_shared" then
+                platform:add("ldflags", "-lstlport_shared")
+                platform:add("shflags", "-lstlport_shared")
+            end
+            
         end
     end
 
     -- init targets for rust
-    local targets = 
+    local targets_rust = 
     {
         ["armv5te"]     = "arm-linux-androideabi"
     ,   ["armv7-a"]     = "arm-linux-androideabi"
@@ -206,7 +262,9 @@ function main(platform)
     }
 
     -- init flags for rust
-    platform:add("rcflags", "--target=" .. targets[arch])
+    if targets_rust[arch] then
+        platform:add("rcflags", "--target=" .. targets_rust[arch])
+    end
     platform:add("rc-shflags", "-C link-args=\"" .. (table.concat(platform:get("shflags"), " "):gsub("%-march=.-%s", "") .. "\""))
     platform:add("rc-ldflags", "-C link-args=\"" .. (table.concat(platform:get("ldflags"), " "):gsub("%-march=.-%s", "") .. "\""))
     local sh = config.get("sh")

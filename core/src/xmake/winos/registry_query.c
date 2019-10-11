@@ -1,12 +1,8 @@
 /*!A cross-platform build utility based on Lua
  *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -165,7 +161,7 @@ tb_int_t xm_winos_registry_query(lua_State* lua)
 
             // get registry value size
             DWORD valuesize = 0;
-            if (RegQueryValueEx(keynew, valuename, tb_null, tb_null, tb_null, &valuesize) != ERROR_SUCCESS)
+            if (RegQueryValueExA(keynew, valuename, tb_null, tb_null, tb_null, &valuesize) != ERROR_SUCCESS)
             {
                 lua_pushnil(lua);
                 lua_pushfstring(lua, "get registry value size failed: %s", path);
@@ -178,7 +174,7 @@ tb_int_t xm_winos_registry_query(lua_State* lua)
 
             // get value result
             type = 0;
-            if (RegQueryValueEx(keynew, valuename, tb_null, &type, (LPBYTE)value, &valuesize) != ERROR_SUCCESS)
+            if (RegQueryValueExA(keynew, valuename, tb_null, &type, (LPBYTE)value, &valuesize) != ERROR_SUCCESS)
             {
                 lua_pushnil(lua);
                 lua_pushfstring(lua, "get registry value failed: %s", path);

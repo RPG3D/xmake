@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,17 +26,6 @@ import("vsfile")
 -- get toolset version
 function _get_toolset_ver(targetinfo, vsinfo)
 
-    -- the toolset versions
-    local toolset_vers = 
-    {
-        vs2010 = "v100"
-    ,   vs2012 = "v110"
-    ,   vs2013 = "v120"
-    ,   vs2015 = "v140"
-    ,   vs2017 = "v141"
-    ,   vs2019 = "v142"
-    }
-
     -- get toolset version from vs version
     local toolset_ver = nil
     local vs_toolset = config.get("vs_toolset")
@@ -49,7 +34,7 @@ function _get_toolset_ver(targetinfo, vsinfo)
         toolset_ver = "v" .. verinfo[1] .. (verinfo[2] or "0")
     end
     if not toolset_ver then
-        toolset_ver = toolset_vers["vs" .. vsinfo.vstudio_version]
+        toolset_ver = vsinfo.toolset_version
     end
 
     -- for xp?
@@ -67,14 +52,6 @@ end
 -- get platform sdk version
 function _get_platform_sdkver(target, vsinfo)
 
-    -- the default sdk version
-    local sdkvers = 
-    {
-        vs2015 = "10.0.10240.0"
-    ,   vs2017 = "10.0.14393.0"
-    ,   vs2019 = "10.0.17763.0"
-    }
-
     -- get sdk version for vcvarsall[arch].WindowsSDKVersion
     local sdkver = nil
     for _, targetinfo in ipairs(target.info) do
@@ -85,7 +62,7 @@ function _get_platform_sdkver(target, vsinfo)
     end
 
     -- done
-    return sdkver or sdkvers["vs" .. vsinfo.vstudio_version]
+    return sdkver or vsinfo.sdk_version
 end
 
 -- make compiling command
@@ -171,20 +148,9 @@ end
 -- make header
 function _make_header(vcxprojfile, vsinfo)
 
-    -- the versions
-    local versions = 
-    {
-        vs2010 = '4'
-    ,   vs2012 = '4'
-    ,   vs2013 = '12'
-    ,   vs2015 = '14'
-    ,   vs2017 = '15'
-    ,   vs2019 = '16'
-    }
-
     -- make header
     vcxprojfile:print("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-    vcxprojfile:enter("<Project DefaultTargets=\"Build\" ToolsVersion=\"%s.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">", assert(versions["vs" .. vsinfo.vstudio_version]))
+    vcxprojfile:enter("<Project DefaultTargets=\"Build\" ToolsVersion=\"%s.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">", assert(vsinfo.project_version))
 end
 
 -- make tailer
@@ -365,7 +331,7 @@ function _make_source_options(vcxprojfile, flags, condition)
         end
     end
 
-    -- complie as c++ if exists flag: /TP
+    -- compile as c++ if exists flag: /TP
     if flagstr:find("[%-/]TP") then
         vcxprojfile:print("<CompileAs%s>CompileAsCpp</CompileAs>", condition)
     end
@@ -491,8 +457,9 @@ function _make_common_items(vcxprojfile, vsinfo, target, vcxprojdir)
         local files_count = 0
         local first_flags = nil
         targetinfo.sourceflags = {}
-        for sourcekind, sourcebatch in pairs(targetinfo.sourcebatches) do
-            if not sourcebatch.rulename and (sourcekind == "cc" or sourcekind == "cxx" or sourcekind == "as" or sourcekind == "mrc") then
+        for _, sourcebatch in pairs(targetinfo.sourcebatches) do
+            local sourcekind = sourcebatch.sourcekind
+            if (sourcekind == "cc" or sourcekind == "cxx" or sourcekind == "as" or sourcekind == "mrc") then
                 for _, sourcefile in ipairs(sourcebatch.sourcefiles) do
 
                     -- make compiler flags
@@ -749,8 +716,9 @@ function _make_source_files(vcxprojfile, vsinfo, target, vcxprojdir)
         -- make source file infos
         local sourceinfos = {}
         for _, targetinfo in ipairs(target.info) do
-            for sourcekind, sourcebatch in pairs(targetinfo.sourcebatches) do
-                if not sourcebatch.rulename and (sourcekind == "cc" or sourcekind == "cxx" or sourcekind == "as" or sourcekind == "mrc") then
+            for _, sourcebatch in pairs(targetinfo.sourcebatches) do
+                local sourcekind = sourcebatch.sourcekind
+                if (sourcekind == "cc" or sourcekind == "cxx" or sourcekind == "as" or sourcekind == "mrc") then
                     local objectfiles = sourcebatch.objectfiles
                     for idx, sourcefile in ipairs(sourcebatch.sourcefiles) do
                         local objectfile    = objectfiles[idx]
@@ -817,7 +785,4 @@ function make(vsinfo, target)
 
     -- exit solution file
     vcxprojfile:close()
-
-    -- convert gb2312 to utf8
-    io.writefile(vcxprojpath, io.readfile(vcxprojpath):convert("gb2312", "utf8"))
 end

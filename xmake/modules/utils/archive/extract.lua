@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -60,8 +56,10 @@ function _extract_using_tar(archivefile, outputdir, extension, opt)
     end
 
     -- set outputdir
-    table.insert(argv, "-C")
-    table.insert(argv, outputdir)
+    if not is_host("windows") then
+        table.insert(argv, "-C")
+        table.insert(argv, outputdir)
+    end
 
     -- excludes files
     if opt.excludes then
@@ -72,7 +70,13 @@ function _extract_using_tar(archivefile, outputdir, extension, opt)
     end
 
     -- extract it
-    os.vrunv(program, argv)
+    if is_host("windows") then
+        local oldir = os.cd(outputdir)
+        os.vrunv(program, argv)
+        os.cd(oldir)
+    else
+        os.vrunv(program, argv)
+    end
 
     -- ok
     return true
@@ -120,12 +124,17 @@ function _extract_using_7z(archivefile, outputdir, extension, opt)
     if excludesfile then
         os.tryrm(excludesfile)
     end
+    
+    -- remove unused pax_global_header file after extracting .tar file
+    if extension == ".tar" then
+        os.tryrm(path.join(outputdir, "pax_global_header"))
+    end
 
     -- continue to extract *.tar file
     if outputdir_old then
-        local tarfile = find_file("*.tar", outputdir)
+        local tarfile = find_file("**.tar", outputdir)
         if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_tar, _extract_using_7z}, opt)
+            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
         end
     end
 
@@ -180,9 +189,9 @@ function _extract_using_gzip(archivefile, outputdir, extension, opt)
 
     -- continue to extract *.tar file
     if outputdir_old then
-        local tarfile = find_file("*.tar", outputdir)
+        local tarfile = find_file("**.tar", outputdir)
         if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_tar, _extract_using_7z}, opt)
+            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
         end
     end
 
@@ -237,9 +246,9 @@ function _extract_using_xz(archivefile, outputdir, extension, opt)
 
     -- continue to extract *.tar file
     if outputdir_old then
-        local tarfile = find_file("*.tar", outputdir)
+        local tarfile = find_file("**.tar", outputdir)
         if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_tar, _extract_using_7z}, opt)
+            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
         end
     end
 
@@ -292,7 +301,7 @@ function _extract_using_unzip(archivefile, outputdir, extension, opt)
 
     -- continue to extract *.tar file
     if outputdir_old then
-        local tarfile = find_file("*.tar", outputdir)
+        local tarfile = find_file("**.tar", outputdir)
         if tarfile and os.isfile(tarfile) then
             return _extract(tarfile, outputdir_old, ".tar", {_extract_using_tar, _extract_using_7z}, opt)
         end
@@ -343,7 +352,7 @@ end
 --
 -- @param archivefile   the archive file. e.g. *.tar.gz, *.zip, *.7z, *.tar.bz2, ..
 -- @param outputdir     the output directory
--- @param options       the options, .e.g. {excludes = {"*/dir/*", "dir/*"}}
+-- @param options       the options, e.g.. {excludes = {"*/dir/*", "dir/*"}}
 --
 function main(archivefile, outputdir, opt)
 
@@ -363,8 +372,8 @@ function main(archivefile, outputdir, opt)
     ,   [".tgz"]        = {_extract_using_tar, _extract_using_7z}
     ,   [".bz2"]        = {_extract_using_tar, _extract_using_7z}
     ,   [".tar"]        = {_extract_using_tar, _extract_using_7z}
-    ,   [".tar.gz"]     = {_extract_using_tar, _extract_using_gzip, _extract_using_7z}
-    ,   [".tar.xz"]     = {_extract_using_tar, _extract_using_xz, _extract_using_7z}
+    ,   [".tar.gz"]     = {_extract_using_tar, _extract_using_7z, _extract_using_gzip}
+    ,   [".tar.xz"]     = {_extract_using_tar, _extract_using_7z, _extract_using_xz}
     ,   [".tar.bz2"]    = {_extract_using_tar, _extract_using_7z}
     }
     

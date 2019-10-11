@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -27,7 +23,7 @@ import("core.base.option")
 import("core.project.config")
 import("core.project.project")
 import("core.language.language")
-import("detect.tools.find_ccache")
+import("private.tools.ccache")
 
 -- init it
 function init(self)
@@ -53,16 +49,11 @@ function init(self)
         ["-W1"] = "-Wall"
     ,   ["-W2"] = "-Wall"
     ,   ["-W3"] = "-Wall"
+    ,   ["-W4"] = "-Wall -Wunsupported"
 
          -- strip
     ,   ["-s"]  = "-s"
     ,   ["-S"]  = "-S"
-    })
-
-    -- init buildmodes
-    self:set("buildmodes",
-    {
-        ["object:sources"] = false
     })
 end
 
@@ -100,11 +91,13 @@ function nf_warning(self, level)
     -- the maps
     local maps = 
     {   
-        none  = "-w"
-    ,   less  = "-W1"
-    ,   more  = "-W3"
-    ,   all   = "-Wall"
-    ,   error = "-Werror"
+        none       = "-w"
+    ,   less       = "-W1"
+    ,   more       = "-W3"
+    ,   all        = "-Wall"
+    ,   extra      = "-Wunsupported"
+    ,   everything = "-Wall -Wunsupported -Wwrite-strings"
+    ,   error      = "-Werror"
     }
 
     -- make it
@@ -156,36 +149,12 @@ function link(self, objectfiles, targetkind, targetfile, flags)
     os.runv(linkargv(self, objectfiles, targetkind, targetfile, flags))
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function _compargv1(self, sourcefile, objectfile, flags)
-
-    -- get ccache
-    local ccache = nil
-    if config.get("ccache") then
-        ccache = find_ccache()
-    end
-
-    -- make argv
-    local argv = table.join("-c", flags, "-o", objectfile, sourcefile)
-
-    -- uses cache?
-    local program = self:program()
-    if ccache then
-            
-        -- parse the filename and arguments, .e.g "xcrun -sdk macosx clang"
-        if not os.isexec(program) then
-            argv = table.join(program:split("%s"), argv)
-        else 
-            table.insert(argv, 1, program)
-        end
-        return ccache, argv
-    end
-
-    -- no cache
-    return program, argv
+    return ccache.cmdargv(self:program(), table.join("-c", flags, "-o", objectfile, sourcefile))
 end
 
--- complie the source file
+-- compile the source file
 function _compile1(self, sourcefile, objectfile, dependinfo, flags)
 
     -- ensure the object directory
@@ -206,7 +175,7 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
                 os.tryrm(objectfile)
 
                 -- find the start line of error
-                local lines = errors:split("\n")
+                local lines = tostring(errors):split("\n")
                 local start = 0
                 for index, line in ipairs(lines) do
                     if line:find("error:", 1, true) or line:find("错误：", 1, true) then
@@ -238,7 +207,7 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
     }
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function compargv(self, sourcefiles, objectfile, flags)
 
     -- only support single source file now
@@ -248,7 +217,7 @@ function compargv(self, sourcefiles, objectfile, flags)
     return _compargv1(self, sourcefiles, objectfile, flags)
 end
 
--- complie the source file
+-- compile the source file
 function compile(self, sourcefiles, objectfile, dependinfo, flags)
 
     -- only support single source file now

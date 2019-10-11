@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -25,19 +21,13 @@
 -- imports
 import("core.base.option")
 import("core.base.task")
+import("core.project.config")
 import("core.platform.environment")
 import("make.makefile")
+import("make.xmakefile")
 import("cmake.cmakelists")
-import("vstudio.vs2002")
-import("vstudio.vs2003")
-import("vstudio.vs2005")
-import("vstudio.vs2008")
-import("vstudio.vs2010")
-import("vstudio.vs2012")
-import("vstudio.vs2013")
-import("vstudio.vs2015")
-import("vstudio.vs2017")
-import("vstudio.vs2019")
+import("vstudio.vs")
+import("vsxmake.vsxmake")
 import("clang.compile_flags")
 import("clang.compile_commands")
 
@@ -48,22 +38,31 @@ function _make(kind)
     local maps = 
     {
         makefile         = makefile.make
+    ,   xmakefile        = xmakefile.make
     ,   cmakelists       = cmakelists.make
-    ,   vs2002           = vs2002.make
-    ,   vs2003           = vs2003.make
-    ,   vs2005           = vs2005.make
-    ,   vs2008           = vs2008.make
-    ,   vs2010           = vs2010.make
-    ,   vs2012           = vs2012.make
-    ,   vs2013           = vs2013.make
-    ,   vs2015           = vs2015.make
-    ,   vs2017           = vs2017.make
-    ,   vs2019           = vs2019.make
+    ,   vs2002           = vs.make(2002)
+    ,   vs2003           = vs.make(2003)
+    ,   vs2005           = vs.make(2005)
+    ,   vs2008           = vs.make(2008)
+    ,   vs2010           = vs.make(2010)
+    ,   vs2012           = vs.make(2012)
+    ,   vs2013           = vs.make(2013)
+    ,   vs2015           = vs.make(2015)
+    ,   vs2017           = vs.make(2017)
+    ,   vs2019           = vs.make(2019)
+    ,   vs               = vs.make()
+    ,   vsxmake2010      = vsxmake.make(2010)
+    ,   vsxmake2012      = vsxmake.make(2012)
+    ,   vsxmake2013      = vsxmake.make(2013)
+    ,   vsxmake2015      = vsxmake.make(2015)
+    ,   vsxmake2017      = vsxmake.make(2017)
+    ,   vsxmake2019      = vsxmake.make(2019)
+    ,   vsxmake          = vsxmake.make()
     ,   compile_flags    = compile_flags.make
     ,   compile_commands = compile_commands.make
     }
     assert(maps[kind], "the project kind(%s) is not supported!", kind)
-    
+
     -- make it
     maps[kind](option.get("outputdir"))
 end
@@ -84,5 +83,5 @@ function main()
     environment.leave("toolchains")
 
     -- trace
-    cprint("${bright}create ok!${ok_hand}")
+    cprint("${bright}create ok!")
 end

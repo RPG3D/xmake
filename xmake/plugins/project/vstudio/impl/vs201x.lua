@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -78,8 +74,9 @@ function _make_targetinfo(mode, arch, target)
     local firstcompflags = nil
     targetinfo.compflags = {}
     targetinfo.compargvs = {}
-    for sourcekind, sourcebatch in pairs(target:sourcebatches()) do
-        if not sourcebatch.rulename then
+    for _, sourcebatch in pairs(target:sourcebatches()) do
+        local sourcekind = sourcebatch.sourcekind
+        if sourcekind then
             for idx, sourcefile in ipairs(sourcebatch.sourcefiles) do
                 local compflags = compiler.compflags(sourcefile, {target = target})
                 if not firstcompflags and (sourcekind == "cc" or sourcekind == "cxx") then
@@ -169,7 +166,10 @@ function _make_vsinfo_modes()
     local vsinfo_modes = {}
     local modes = option.get("modes")
     if modes then
-        for _, mode in ipairs(modes:split(',')) do
+        if not modes:find("\"") then
+            modes = modes:gsub(",", path.envsep())
+        end
+        for _, mode in ipairs(path.splitenv(modes)) do
             table.insert(vsinfo_modes, mode:trim())
         end
     else
@@ -185,7 +185,10 @@ function _make_vsinfo_archs()
     local vsinfo_archs = {}
     local archs = option.get("archs")
     if archs then
-        for _, arch in ipairs(archs:split(',')) do
+        if not archs:find("\"") then
+            archs = archs:gsub(",", path.envsep())
+        end
+        for _, arch in ipairs(path.splitenv(archs)) do
             table.insert(vsinfo_archs, arch:trim())
         end
     else

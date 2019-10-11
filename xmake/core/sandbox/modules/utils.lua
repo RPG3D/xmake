@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -24,6 +20,7 @@
 
 -- load modules
 local io        = require("base/io")
+local os        = require("base/os")
 local utils     = require("base/utils")
 local colors    = require("base/colors")
 local option    = require("base/option")
@@ -31,7 +28,6 @@ local log       = require("base/log")
 local try       = require("sandbox/modules/try")
 local catch     = require("sandbox/modules/catch")
 local vformat   = require("sandbox/modules/vformat")
-local raise     = require("sandbox/modules/raise")
 
 -- define module
 local sandbox_utils = sandbox_utils or {}
@@ -177,15 +173,24 @@ function sandbox_utils.assert(value, format, ...)
     -- check
     if not value then
         if format ~= nil then
-            raise(format, ...)
+            os.raiselevel(2, format, ...)
         else
-            raise("assertion failed!")  
+            os.raiselevel(2, "assertion failed!")
         end
     end
 
-    -- return it 
+    -- return it
     return value
 end
+
+-- get user confirm 
+function sandbox_utils.confirm(opt)
+    return utils.confirm(opt)
+end
+
+-- dump value
+-- do not change to a function call to utils.dump since debug.getinfo is called in utils.dump to get caller info
+sandbox_utils.dump = utils.dump
 
 -- return module
 return sandbox_utils

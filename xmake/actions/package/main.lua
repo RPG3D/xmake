@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -41,22 +37,22 @@ function _package_library(target)
     local targetname = target:name()
 
     -- copy the library file to the output directory
-    os.cp(target:targetfile(), format("%s/%s.pkg/lib/$(mode)/$(plat)/$(arch)/%s", outputdir, targetname, path.filename(target:targetfile()))) 
+    os.cp(target:targetfile(), format("%s/%s.pkg/$(plat)/$(arch)/lib/$(mode)/%s", outputdir, targetname, path.filename(target:targetfile()))) 
 
     -- copy the symbol file to the output directory
     local symbolfile = target:symbolfile()
     if os.isfile(symbolfile) then
-        os.cp(symbolfile, format("%s/%s.pkg/lib/$(mode)/$(plat)/$(arch)/%s", outputdir, targetname, path.filename(symbolfile))) 
+        os.cp(symbolfile, format("%s/%s.pkg/$(plat)/$(arch)/lib/$(mode)/%s", outputdir, targetname, path.filename(symbolfile))) 
     end
 
-    -- copy the config.h to the output directory
+    -- copy the config.h to the output directory (deprecated)
     local configheader = target:configheader()
     if configheader then
-        os.cp(configheader, format("%s/%s.pkg/inc/$(plat)/%s", outputdir, targetname, path.filename(configheader))) 
+        os.cp(configheader, format("%s/%s.pkg/$(plat)/$(arch)/include/%s", outputdir, targetname, path.filename(configheader))) 
     end
 
     -- copy headers
-    local srcheaders, dstheaders = target:headerfiles(format("%s/%s.pkg/inc", outputdir, targetname))
+    local srcheaders, dstheaders = target:headerfiles(format("%s/%s.pkg/$(plat)/$(arch)/include", outputdir, targetname))
     if srcheaders and dstheaders then
         local i = 1
         for _, srcheader in ipairs(srcheaders) do
@@ -71,44 +67,16 @@ function _package_library(target)
     -- make xmake.lua 
     local file = io.open(format("%s/%s.pkg/xmake.lua", outputdir, targetname), "w")
     if file then
-
-        -- the xmake.lua content
-        local content = [[ 
--- the [targetname] package
-option("[targetname]")
-
-    -- show menu
-    set_showmenu(true)
-
-    -- set category
-    set_category("package")
-
-    -- set description
-    set_description("The [targetname] package")
-
-    -- set language: c99, c++11
-    set_languages("c99", "cxx11")
-
-    -- add defines to config.h if checking ok
-    add_defines_h("$(prefix)_PACKAGE_HAVE_[TARGETNAME]")
-
-    -- add links for checking
-    add_links("[targetname]")
-
-    -- add link directories
-    add_linkdirs("lib/$(mode)/$(plat)/$(arch)")
-
-    -- add c includes for checking
-    add_cincludes("[targetname]/[targetname].h")
-
-    -- add include directories
-    add_includedirs("inc/$(plat)", "inc")
-]]
-
-        -- save file
-        file:write((content:gsub("%[targetname%]", targetname):gsub("%[TARGETNAME%]", targetname:upper())))
-
-        -- exit file
+        file:print("option(\"%s\")", targetname)
+        file:print("    set_showmenu(true)")
+        file:print("    set_category(\"package\")")
+        file:print("    add_links(\"%s\")", target:basename())
+        file:write("    add_linkdirs(\"$(plat)/$(arch)/lib/$(mode)\")\n")
+        file:write("    add_includedirs(\"$(plat)/$(arch)/include\")\n")
+        local languages = target:get("languages")
+        if languages then
+            file:print("    set_languages(\"%s\")", table.concat(table.wrap(languages), "\", \""))
+        end
         file:close()
     end
 end
@@ -249,6 +217,9 @@ function main()
         raise("please run \"xmake m package %s\" instead of \"xmake p --archs=%s\"", config.get("plat"), option.get("archs"))
     end
 
+    -- lock the whole project
+    project.lock()
+
     -- get the target name
     local targetname = option.get("target")
 
@@ -270,4 +241,7 @@ function main()
             end
         end
     end
+
+    -- unlock the whole project
+    project.lock()
 end

@@ -35,22 +35,38 @@ xmake_C_FILES 			+= \
 						os/exists \
 						os/setenv \
 						os/getenv \
+						os/getenvs \
+						os/cpuinfo \
 						os/readlink \
 						os/emptydir \
 						os/strerror \
 						os/filesize \
 						os/getwinsize \
-						os/versioninfo \
 						os/uid \
 						os/gid \
 						os/getown \
-						io/isatty \
+						io/stdfile \
+						io/file_size \
+						io/file_close \
+						io/file_flush \
+						io/file_isatty \
+						io/file_open \
+						io/file_read \
+						io/file_seek \
+						io/file_write \
+						io/file_rawfd \
+						io/filelock_open \
+						io/filelock_lock \
+						io/filelock_unlock \
+						io/filelock_trylock \
+						io/filelock_close \
 						path/relative \
 						path/absolute \
 						path/translate \
 						path/is_absolute \
 						hash/uuid \
 						hash/sha256 \
+						string/trim \
 						string/convert \
 						string/endswith \
 						string/startswith \
@@ -78,10 +94,10 @@ xmake_CXFLAGS 	   	    += $(if $(findstring curses,$(base_LIBNAMES)),-DXM_CONFIG
 	
 # includes
 xmake_INC_DIRS 		    += \
-						../tbox/src \
+						../tbox/tbox/src \
 						../tbox/inc/$(PLAT) \
-						../luajit/src \
-                        ../sv/include
+						../luajit/luajit/src \
+                        ../sv/sv/include
 
 						
 # suffix

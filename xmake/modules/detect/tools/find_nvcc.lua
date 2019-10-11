@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -23,14 +19,11 @@
 --
 
 -- imports
-import("core.project.config")
-import("lib.detect.find_program")
-import("lib.detect.find_programver")
-import("detect.sdks.find_cuda")
+import("private.detect.find_cudatool")
 
 -- find nvcc 
 --
--- @param opt   the argument options, .e.g {version = true}
+-- @param opt   the argument options, e.g. {version = true}
 --
 -- @return      program, version
 --
@@ -42,28 +35,5 @@ import("detect.sdks.find_cuda")
 -- @endcode
 --
 function main(opt)
-
-    -- init options
-    opt       = opt or {}
-    opt.parse = opt.parse or "V(%d+%.?%d*%.?%d*.-)%s"
-
-    -- find program
-    local program = find_program(opt.program or "nvcc", opt)
-
-    -- not found? attempt to find program from cuda toolchains
-    if not program then
-        local toolchains = find_cuda(config.get("cuda"))
-        if toolchains and toolchains.bindir then
-            program = find_program(path.join(toolchains.bindir, "nvcc"), opt)
-        end
-    end
-
-    -- find program version
-    local version = nil
-    if program and opt and opt.version then
-        version = find_programver(program, opt)
-    end
-
-    -- ok?
-    return program, version
+    return find_cudatool("nvcc", "V(%d+%.?%d*%.?%d*.-)%s", opt)
 end

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -32,7 +28,6 @@ local path          = require("base/path")
 local utils         = require("base/utils")
 local option        = require("base/option")
 local global        = require("base/global")
-local profiler      = require("base/profiler")
 local deprecated    = require("base/deprecated")
 local privilege     = require("base/privilege")
 local task          = require("base/task")
@@ -40,19 +35,27 @@ local colors        = require("base/colors")
 local theme         = require("theme/theme")
 local project       = require("project/project")
 local history       = require("project/history")
+--local profiler      = require("base/profiler")
 
 -- init the option menu
 local menu =
 {
     -- title
-    title = "${bright}xmake v" .. xmake._VERSION .. ", A cross-platform build utility based on Lua${clear}"
+    title = "${bright}xmake v" .. _VERSION .. ", A cross-platform build utility based on Lua${clear}"
 
     -- copyright
 ,   copyright = "Copyright (C) 2015-2019 Ruki Wang, ${underline}tboox.org${clear}, ${underline}xmake.io${clear}\nCopyright (C) 2005-2015 Mike Pall, ${underline}luajit.org${clear}"
 
     -- the tasks: xmake [task]
 ,   function () 
-        return task.menu(table.join(task.tasks(), project.tasks())) 
+        local tasks = task.tasks() or {}
+        local ok, protasks_or_errors = pcall(project.tasks)
+        if ok then
+            table.join2(tasks, protasks_or_errors)
+        else
+            utils.cprint("${dim}%s", protasks_or_errors)
+        end
+        return task.menu(tasks) 
     end
 
 }
@@ -129,7 +132,7 @@ function main._init()
     local projectdir = opt_projectdir or xmake._PROJECT_DIR
     if projectdir and not path.is_absolute(projectdir) then
         projectdir = path.absolute(projectdir)
-    elseif projectdir then 
+    elseif projectdir then
         projectdir = path.translate(projectdir)
     end
     xmake._PROJECT_DIR = projectdir
@@ -154,13 +157,7 @@ function main._init()
 
     -- enter the project directory
     if os.isdir(os.projectdir()) then
-        if path.translate(os.projectdir()) ~= path.translate(os.curdir()) then
-            utils.warning([[You are working in the project directory(%s) and you can also 
-force to build in current directory via run `xmake -P .`]], os.projectdir())
-        end
-        xmake._WORKING_DIR = os.cd(os.projectdir())
-    else
-        xmake._WORKING_DIR = os.curdir()
+        os.cd(os.projectdir())
     end
 
     -- add the directory of the program file (xmake) to $PATH environment
@@ -178,8 +175,23 @@ function main.entry()
     -- init 
     main._init()
 
+    -- load global configuration
+    local ok, errors = global.load()
+    if not ok then
+        utils.error(errors)
+        return -1
+    end
+
+    -- load theme
+    local theme_inst, errors = theme.load(global.get("theme") or "default")
+    if not theme_inst then
+        utils.error(errors)
+        return -1
+    end
+    colors.theme_set(theme_inst)
+
     -- init option 
-    local ok, errors = option.init(menu)  
+    ok, errors = option.init(menu)
     if not ok then
         utils.error(errors)
         return -1
@@ -199,30 +211,8 @@ Or you can add `--root` option or XMAKE_ROOT=y to allow run as root temporarily.
         end
     end
 
-    -- check deprecated options, TODO it will be removed after v2.3.0
-    if option.get("backtrace") then
-        deprecated.add("-D or --diagnosis", "--backtrace")
-    end
-
     -- start profiling
-    if option.get("profile") then
-        profiler:start()
-    end
-
-    -- load global configuration
-    ok, errors = global.load()
-    if not ok then
-        utils.error(errors)
-        return -1
-    end
-
-    -- load theme
-    local theme_inst, errors = theme.load(global.get("theme") or "default")
-    if not theme_inst then
-        utils.error(errors)
-        return -1
-    end
-    colors.theme_set(theme_inst)
+    -- profiler:start()
 
     -- show help?
     if main._show_help() then
@@ -230,13 +220,14 @@ Or you can add `--root` option or XMAKE_ROOT=y to allow run as root temporarily.
     end
 
     -- save command lines to history
-    if os.isfile(os.projectfile()) then
+    local skipHistory = (os.getenv('XMAKE_SKIP_HISTORY') or ''):trim()
+    if os.isfile(os.projectfile()) and skipHistory == '' then
         history("local.history"):save("cmdlines", option.cmdline())
     end
 
     -- get task instance
     local taskname = option.taskname() or "build"
-    local taskinst = project.task(taskname) or task.task(taskname) 
+    local taskinst = project.task(taskname) or task.task(taskname)
     if not taskinst then
         utils.error("do unknown task(%s)!", taskname)
         return -1
@@ -253,9 +244,7 @@ Or you can add `--root` option or XMAKE_ROOT=y to allow run as root temporarily.
     deprecated.dump()
 
     -- stop profiling
-    if option.get("profile") then
-        profiler:stop()
-    end
+    -- profiler:stop()
 
     -- close log
     log:close()

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -42,12 +38,21 @@ function _find_ndkdir(sdkdir)
 
     -- get ndk directory
     if sdkdir and os.isdir(sdkdir) then
-        return sdkdir
+        return path.translate(sdkdir)
     end
 end
 
 -- find the sdk version of ndk
-function _find_ndk_sdkver(sdkdir)
+function _find_ndk_sdkver(sdkdir, arch)
+
+    -- try to select the best compatible version
+    local sdkver = "16"
+    if arch == "arm64-v8a" then
+        sdkver = "21"
+    end
+    if os.isdir(path.join(sdkdir, "platforms", "android-" .. sdkver)) then
+        return sdkver
+    end
 
     -- find the max version
     local sdkver_max = 0
@@ -59,15 +64,15 @@ function _find_ndk_sdkver(sdkdir)
         if count > 0 then
 
             -- get the max version
-            local sdkver = tonumber(version)
-            if sdkver > sdkver_max then
-                sdkver_max = sdkver
+            local sdkver_now = tonumber(version)
+            if sdkver_now > sdkver_max then
+                sdkver_max = sdkver_now
             end
         end
     end
 
     -- get the max sdk version
-    return sdkver_max > 0 and sdkver_max or nil
+    return sdkver_max > 0 and tostring(sdkver_max) or nil
 end
 
 -- find the toolchains version of ndk
@@ -84,29 +89,49 @@ function _find_ndk(sdkdir, arch, ndk_sdkver, ndk_toolchains_ver)
         return {}
     end
 
-    -- is arm64?
-    local arm64 = arch and arch:startswith("arm64")
+    -- get cross
+    local crosses = 
+    {
+        ["armv5te"]     = "arm-linux-androideabi-"
+    ,   ["armv7-a"]     = "arm-linux-androideabi-"
+    ,   ["arm64-v8a"]   = "aarch64-linux-android-"
+    ,   i386            = "i686-linux-android-"
+    ,   x86_64          = "x86_64-linux-android-"
+    ,   mips            = "mips-linux-android-"
+    ,   mips64          = "mips64-linux-android-"
+    }
+    local cross = crosses[arch]
 
-    -- the cross
-    local cross = arm64 and "aarch64-linux-android-" or "arm-linux-androideabi-"
+    -- get gcc toolchain sub-directory
+    local gcc_toolchain_subdirs = 
+    {
+        ["armv5te"]     = "arm-linux-androideabi-*"
+    ,   ["armv7-a"]     = "arm-linux-androideabi-*"
+    ,   ["arm64-v8a"]   = "aarch64-linux-android-*"
+    ,   i386            = "x86-*"
+    ,   x86_64          = "x86_64-*"
+    ,   mips            = "mipsel-linux-android-*"
+    ,   mips64          = "mips64el-linux-android-*"
+    }
+    local gcc_toolchain_subdir = gcc_toolchain_subdirs[arch] or "arm-linux-androideabi-*"
 
     -- find the binary directory
     local bindir = find_directory("bin", path.join(sdkdir, "toolchains", "llvm", "prebuilt", "*")) -- larger than ndk r16
     if not bindir then
-        bindir = find_directory("bin", path.join(sdkdir, "toolchains", cross .. "*", "prebuilt", "*"))
+        bindir = find_directory("bin", path.join(sdkdir, "toolchains", gcc_toolchain_subdir, "prebuilt", "*"))
     end
     if not bindir then
         return {}
     end
 
     -- find the sdk version
-    local sdkver = ndk_sdkver or _find_ndk_sdkver(sdkdir)
+    local sdkver = ndk_sdkver or _find_ndk_sdkver(sdkdir, arch)
     if not sdkver then
         return {}
     end
 
     -- find the gcc toolchain
-    local gcc_toolchain = find_directory("bin", path.join(sdkdir, "toolchains", cross .. "*", "prebuilt", "*"))
+    local gcc_toolchain = find_directory("bin", path.join(sdkdir, "toolchains", gcc_toolchain_subdir, "prebuilt", "*"))
     if gcc_toolchain then
         gcc_toolchain = path.directory(gcc_toolchain)
     end
@@ -125,9 +150,9 @@ end
 --
 -- @param sdkdir    the ndk directory
 -- @param opt       the argument options 
---                  .e.g {arch = "[armv5te|armv6|armv7-a|armv8-a|arm64-v8a]", verbose = true, force = false, sdkver = 19, toolchains_ver = "4.9"}  
+--                  e.g. {arch = "[armv5te|armv6|armv7-a|armv8-a|arm64-v8a]", verbose = true, force = false, sdkver = 19, toolchains_ver = "4.9"}  
 --
--- @return          the ndk toolchains. .e.g {bindir = .., cross = ..}
+-- @return          the ndk toolchains. e.g. {bindir = .., cross = ..}
 --
 -- @code 
 --
@@ -152,7 +177,7 @@ function main(sdkdir, opt)
     local arch = opt.arch or config.get("arch") or "armv7-a"
        
     -- find ndk
-    local ndk = _find_ndk(sdkdir or config.get("ndk") or global.get("ndk") or config.get("sdk"), arch, opt.sdkver or config.get("ndk_sdkver"), opt.toolchains_ver or config.get("ndk_toolchains_ver"))
+    local ndk = _find_ndk(sdkdir or config.get("ndk") or global.get("ndk"), arch, opt.sdkver or config.get("ndk_sdkver"), opt.toolchains_ver or config.get("ndk_toolchains_ver"))
     if ndk and ndk.sdkdir then
 
         -- save to config

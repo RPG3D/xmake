@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -46,23 +42,28 @@ import("lib.detect.find_tool")
 function main(reftype, url)
 
     -- find git
-    local git = find_tool("git")
-    if not git then
-        return 
-    end
+    local git = assert(find_tool("git"), "git not found!")
 
     -- init reference type
     reftype = reftype or "refs"
 
+    -- init arguments
+    local argv = {"ls-remote", "--" .. reftype, url or "."}
+
+    -- trace
+    if option.get("verbose") then
+        print("%s %s", git.program, os.args(argv))
+    end
+
     -- get refs
-    local data = os.iorunv(git.program, {"ls-remote", "--" .. reftype, url or "."})
+    local data = os.iorunv(git.program, argv)
 
     -- get commmits and tags
     local refs = {}
     for _, line in ipairs(data:split('\n')) do
 
         -- parse commit and ref
-        local refinfo = line:split('%s+')
+        local refinfo = line:split('%s')
 
         -- get commit 
         local commit = refinfo[1]

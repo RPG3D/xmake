@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -33,12 +29,16 @@ local path           = require("base/path")
 local utils          = require("base/utils")
 local table          = require("base/table")
 local global         = require("base/global")
+local semver         = require("base/semver")
+local option         = require("base/option")
 local scopeinfo      = require("base/scopeinfo")
 local interpreter    = require("base/interpreter")
 local sandbox        = require("sandbox/sandbox")
 local config         = require("project/config")
 local platform       = require("platform/platform")
+local platform_menu  = require("platform/menu")
 local language       = require("language/language")
+local language_menu  = require("language/menu")
 local sandbox        = require("sandbox/sandbox")
 local sandbox_os     = require("sandbox/modules/os")
 local sandbox_module = require("sandbox/modules/import/core/sandbox/module")
@@ -93,6 +93,10 @@ function _instance:plat()
     if self:kind() == "binary" then
         return os.host()
     end
+    local requireinfo = self:requireinfo()
+    if requireinfo and requireinfo.plat then
+        return requireinfo.plat
+    end
     return config.get("plat") or os.host()
 end
 
@@ -101,6 +105,10 @@ function _instance:arch()
     -- @note we uses os.arch() instead of them for the binary package
     if self:kind() == "binary" then
         return os.arch()
+    end
+    local requireinfo = self:requireinfo()
+    if requireinfo and requireinfo.arch then
+        return requireinfo.arch
     end
     return config.get("arch") or os.arch()
 end
@@ -113,6 +121,26 @@ end
 -- get the repository of this package
 function _instance:repo()
     return self._REPO
+end
+
+-- the current platform is belong to the given platforms?
+function _instance:is_plat(...)
+    local plat = self:plat()
+    for _, v in ipairs(table.join(...)) do
+        if v and plat == v then
+            return true
+        end
+    end
+end
+
+-- the current architecture is belong to the given architectures?
+function _instance:is_arch(...)
+    local arch = self:arch()
+    for _, v in ipairs(table.join(...)) do
+        if v and arch:find("^" .. v:gsub("%-", "%%-") .. "$") then
+            return true
+        end
+    end
 end
 
 -- get the package alias  
@@ -135,35 +163,17 @@ end
 
 -- get the alias of url, @note need raw url
 function _instance:url_alias(url)
-    local urls_extra = self:get("__extra_urls")
-    if urls_extra then
-        local urlextra = urls_extra[url]
-        if urlextra then
-            return urlextra.alias
-        end
-    end
+    return self:extraconf("urls", url, "alias")
 end
 
 -- get the version filter of url, @note need raw url
 function _instance:url_version(url)
-    local urls_extra = self:get("__extra_urls")
-    if urls_extra then
-        local urlextra = urls_extra[url]
-        if urlextra then
-            return urlextra.version
-        end
-    end
+    return self:extraconf("urls", url, "version")
 end
 
 -- get the excludes list of url for the archive extractor, @note need raw url
 function _instance:url_excludes(url)
-    local urls_extra = self:get("__extra_urls")
-    if urls_extra then
-        local urlextra = urls_extra[url]
-        if urlextra then
-            return urlextra.excludes
-        end
-    end
+    return self:extraconf("urls", url, "excludes")
 end
 
 -- get the given dependent package
@@ -192,6 +202,19 @@ function _instance:deps_add(...)
         self._DEPS[dep:name()] = dep
         self._ORDERDEPS = self._ORDERDEPS or {}
         table.insert(self._ORDERDEPS, dep)
+    end
+end
+
+-- get parents
+function _instance:parents()
+    return self._PARENTS
+end
+
+-- add parents
+function _instance:parents_add(...)
+    for _, parent in ipairs({...}) do
+        self._PARENTS = self._PARENTS or {}
+        self._PARENTS[parent:name()] = parent
     end
 end
 
@@ -226,6 +249,40 @@ function _instance:kind()
     return self:get("kind")
 end
 
+-- get the filelock of the whole package directory
+function _instance:filelock()
+    local filelock = self._FILELOCK
+    if filelock == nil then
+        filelock = io.openlock(path.join(self:cachedir(), "package.lock"))
+        if not filelock then
+            os.raise("cannot create filelock for package(%s)!", package:name())
+        end
+        self._FILELOCK = filelock 
+    end
+    return filelock
+end
+
+-- lock the whole package 
+function _instance:lock(opt)
+    if self:filelock():trylock(opt) then
+        return true
+    elseif option.get("diagnosis") then
+        utils.warning("the current package is being accessed by other processes, please waiting!") 
+    end
+    local ok, errors = self:filelock():lock(opt)
+    if not ok then
+        os.raise(errors)
+    end
+end
+
+-- unlock the whole package 
+function _instance:unlock()
+    local ok, errors = self:filelock():unlock()
+    if not ok then
+        os.raise(errors)
+    end
+end
+
 -- get the cached directory of this package
 function _instance:cachedir()
     local name = self:name():lower():gsub("::", "_")
@@ -235,7 +292,11 @@ end
 -- get the installed directory of this package
 function _instance:installdir(...)
     local name = self:name():lower():gsub("::", "_")
-    local dir = path.join(package.installdir(), name:sub(1, 1):lower(), name, self:version_str(), self:buildhash(), ...)
+    local dir = path.join(package.installdir(), name:sub(1, 1):lower(), name)
+    if self:version_str() then
+        dir = path.join(dir, self:version_str())
+    end
+    dir = path.join(dir, self:buildhash(), ...)
     if not os.isdir(dir) then
         os.mkdir(dir)
     end
@@ -266,16 +327,19 @@ end
 
 -- load the manifest file of this package
 function _instance:manifest_load()
-    local manifest_file = self:manifest_file()
-    if os.isfile(manifest_file) then
-        
-        -- load manifest
-        local manifest, errors = io.load(manifest_file)
-        if not manifest then
-            os.raise(errors)
+    local manifest = self._MANIFEST
+    if not manifest then
+        local manifest_file = self:manifest_file()
+        if os.isfile(manifest_file) then
+            local errors = nil
+            manifest, errors = io.load(manifest_file)
+            if not manifest then
+                os.raise(errors)
+            end
+            self._MANIFEST = manifest
         end
-        return manifest
     end
+    return manifest
 end
 
 -- save the manifest file of this package
@@ -323,16 +387,6 @@ function _instance:manifest_save()
     end
 end
 
--- TODO: set the given variable, deprecated
-function _instance:setvar(name, ...)
-    self:set(name, ...)
-end
-
--- TODO add the given variable, deprecated
-function _instance:addvar(name, ...)
-    self:add(name, ...)
-end
-
 -- get the exported environments
 function _instance:envs()
     local envs = self._ENVS
@@ -344,6 +398,17 @@ function _instance:envs()
         self._ENVS = envs
     end
     return envs
+end
+
+-- load the package environments from the manifest
+function _instance:envs_load()
+    local manifest = self:manifest_load()
+    if manifest then
+        local envs = self:envs()
+        for name, values in pairs(manifest.envs) do
+            envs[name] = values
+        end
+    end
 end
 
 -- enter the package environments
@@ -399,7 +464,62 @@ function _instance:addenv(name, ...)
     self:envs()[name] = table.join(self:envs()[name] or {}, ...)
 end
 
--- get user private data
+-- get the given build environment variable
+function _instance:build_getenv(name)
+    return self:build_envs(true)[name]
+end
+
+-- set the given build environment variable
+function _instance:build_setenv(name, ...)
+    self:build_envs(true)[name] = table.unwrap({...})
+end
+
+-- add the given build environment variable
+function _instance:build_addenv(name, ...)
+    self:build_envs(true)[name] = table.unwrap(table.join(table.wrap(self:build_envs()[name]), ...))
+end
+
+-- get the build environments
+function _instance:build_envs(lazy_loading)
+    local build_envs = self._BUILD_ENVS
+    if build_envs == nil then
+        -- lazy loading the given environment value and cache it
+        build_envs = {}
+        setmetatable(build_envs, { __index = function (tbl, key)
+            local value = config.get(key)
+            if value == nil then
+                value = platform.get(key, self:plat())
+            end
+            if value == nil then
+                value = platform.tool(key, self:plat())
+            end
+            value = table.unique(table.join(table.wrap(value), self:config(key)))
+            if #value > 0 then
+                value = table.unwrap(value)
+                rawset(tbl, key, value)
+                return value
+            end
+            return rawget(tbl, key)
+        end}) 
+
+        -- save build environments
+        self._BUILD_ENVS = build_envs
+    end
+
+    -- force to load all values if need
+    if not lazy_loading then
+        for _, opt in ipairs(table.join(language_menu.options("config"), platform_menu.options("config"))) do
+            local optname = opt[2]
+            if type(optname) == "string" then
+                -- we need only index it to force load it's value
+                local value = build_envs[optname]
+            end
+        end
+    end
+    return build_envs
+end
+
+-- get the user private data
 function _instance:data(name)
     return self._DATA and self._DATA[name] or nil
 end
@@ -452,37 +572,48 @@ end
 
 -- get the version  
 function _instance:version()
-    return self._VERSION or {}
+    return self._VERSION
 end
 
 -- get the version string 
 function _instance:version_str()
-    return self:version().raw or self:version().version
+    return self._VERSION_STR
 end
 
--- the verson from tags, branches or versions?
-function _instance:version_from(...)
-
-    -- from source?
-    for _, source in ipairs({...}) do
-        if self:version().source == source then
-            return true
-        end
-    end
+-- get branch version 
+function _instance:branch()
+    return self._BRANCH
 end
 
--- set the version
+-- get tag version 
+function _instance:tag()
+    return self._TAG
+end
+
+-- is git ref?
+function _instance:gitref()
+    return self:branch() or self:tag()
+end
+
+-- set the version, source: branches, tags, versions
 function _instance:version_set(version, source)
 
-    -- init package version
-    if type(version) == "string" then
-        version = {version = version, source = source}
-    else
-        version.source = source
+    -- save the semver version
+    local sv = semver.new(version)
+    if sv then
+        self._VERSION = sv
     end
 
-    -- save version
-    self._VERSION = version
+    -- save branch and tag
+    if source == "branches" then
+        self._BRANCH = version
+    elseif source == "tags" then
+        self._TAG = version
+    end
+
+    -- save source and version string
+    self._SOURCE      = source
+    self._VERSION_STR = version
 end
 
 -- get the require info 
@@ -596,22 +727,30 @@ function _instance:script(name, generic)
         local plat = self:plat() or ""
         local arch = self:arch() or ""
 
-        -- match script for special plat and arch
-        local pattern = plat .. '|' .. arch
+        -- match pattern
+        --
+        -- `@linux`
+        -- `@linux|x86_64`
+        -- `@macosx,linux`
+        -- `android@macosx,linux`
+        -- `android|armv7-a@macosx,linux`
+        -- `android|armv7-a@macosx,linux|x86_64`
+        -- `android|armv7-a@linux|x86_64`
+        --
         for _pattern, _script in pairs(script) do
-            if not _pattern:startswith("__") and pattern:find('^' .. _pattern .. '$') then
+            local hosts = {}
+            local hosts_spec = false
+            _pattern = _pattern:gsub("@(.+)", function (v) 
+                for _, host in ipairs(v:split(',')) do
+                    hosts[host] = true
+                    hosts_spec = true
+                end
+                return "" 
+            end)
+            if not _pattern:startswith("__") and (not hosts_spec or hosts[os.host() .. '|' .. os.arch()] or hosts[os.host()])  
+            and (_pattern:trim() == "" or (plat .. '|' .. arch):find('^' .. _pattern .. '$') or plat:find('^' .. _pattern .. '$')) then
                 result = _script
                 break
-            end
-        end
-
-        -- match script for special plat
-        if result == nil then
-            for _pattern, _script in pairs(script) do
-                if not _pattern:startswith("__") and plat:find('^' .. _pattern .. '$') then
-                    result = _script
-                    break
-                end
             end
         end
 
@@ -638,9 +777,9 @@ end
 
 -- fetch the local package info 
 --
--- @param opt   the fetch option, .e.g {force = true, system = false}
+-- @param opt   the fetch option, e.g. {force = true, system = false}
 --
--- @return {packageinfo}, fetchfrom (.e.g xmake/system)
+-- @return {packageinfo}, fetchfrom (e.g. xmake/system)
 --
 function _instance:fetch(opt)
 
@@ -789,27 +928,69 @@ end
 -- has the given c funcs?
 --
 -- @param funcs     the funcs
--- @param opt       the argument options, .e.g { includes = ""}
+-- @param opt       the argument options, e.g. { includes = ""}
 --
 -- @return          true or false
 --
 function _instance:has_cfuncs(funcs, opt)
+    if self:plat() ~= config.get("plat") then
+        -- TODO
+        return true
+    end
     opt = opt or {}
-    opt.configs = self:fetchdeps()
+    opt.configs = table.join(self:fetchdeps(), opt.configs)
     return sandbox_module.import("lib.detect.has_cfuncs", {anonymous = true})(funcs, opt)
 end
 
 -- has the given c++ funcs?
 --
 -- @param funcs     the funcs
--- @param opt       the argument options, .e.g { includes = ""}
+-- @param opt       the argument options, e.g. { includes = ""}
 --
 -- @return          true or false
 --
 function _instance:has_cxxfuncs(funcs, opt)
+    if self:plat() ~= config.get("plat") then
+        -- TODO
+        return true
+    end
     opt = opt or {}
-    opt.configs = self:fetchdeps()
+    opt.configs = table.join(self:fetchdeps(), opt.configs)
     return sandbox_module.import("lib.detect.has_cxxfuncs", {anonymous = true})(funcs, opt)
+end
+
+-- check the given c snippets?
+--
+-- @param snippets  the snippets
+-- @param opt       the argument options, e.g. { includes = ""}
+--
+-- @return          true or false
+--
+function _instance:check_csnippets(snippets, opt)
+    if self:plat() ~= config.get("plat") then
+        -- TODO
+        return true
+    end
+    opt = opt or {}
+    opt.configs = table.join(self:fetchdeps(), opt.configs)
+    return sandbox_module.import("lib.detect.check_csnippets", {anonymous = true})(snippets, opt)
+end
+
+-- check the given c++ snippets?
+--
+-- @param snippets  the snippets
+-- @param opt       the argument options, e.g. { includes = ""}
+--
+-- @return          true or false
+--
+function _instance:check_cxxsnippets(snippets, opt)
+    if self:plat() ~= config.get("plat") then
+        -- TODO
+        return true
+    end
+    opt = opt or {}
+    opt.configs = table.join(self:fetchdeps(), opt.configs)
+    return sandbox_module.import("lib.detect.check_cxxsnippets", {anonymous = true})(snippets, opt)
 end
 
 -- the current mode is belong to the given modes?
@@ -914,7 +1095,7 @@ end
 
 -- the cache directory
 function package.cachedir()
-    return path.join(global.directory(), "cache", "packages")
+    return path.join(global.directory(), "cache", "packages", os.date("%y%m"))
 end
 
 -- the install directory
@@ -964,10 +1145,7 @@ function package.load_from_system(packagename)
     end
 
     -- new an instance
-    local instance, errors = _instance.new(packagename, scopeinfo.new("package", packageinfo))
-    if not instance then
-        return nil, errors
-    end
+    local instance = _instance.new(packagename, scopeinfo.new("package", packageinfo))
 
     -- mark as system or 3rd package
     instance._isSys = true
@@ -1014,10 +1192,7 @@ function package.load_from_project(packagename, project)
     end
 
     -- new an instance
-    local instance, errors = _instance.new(packagename, packages[packagename])
-    if not instance then
-        return nil, errors
-    end
+    local instance = _instance.new(packagename, packages[packagename])
 
     -- save instance to the cache
     package._PACKAGES[packagename] = instance
@@ -1036,7 +1211,9 @@ function package.load_from_repository(packagename, repo, packagedir, packagefile
     end
 
     -- load repository first for checking the xmake minimal version
-    repo:load()
+    if repo then
+        repo:load()
+    end
 
     -- find the package script path
     local scriptpath = packagefile
@@ -1076,10 +1253,7 @@ function package.load_from_repository(packagename, repo, packagedir, packagefile
     end
 
     -- new an instance
-    local instance, errors = _instance.new(packagename, packageinfo, path.directory(scriptpath))
-    if not instance then
-        return nil, errors
-    end
+    local instance = _instance.new(packagename, packageinfo, path.directory(scriptpath))
 
     -- save repository
     instance._REPO = repo

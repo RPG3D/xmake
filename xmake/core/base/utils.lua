@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -29,8 +25,50 @@ local utils = utils or {}
 local option = require("base/option")
 local colors = require("base/colors")
 local string = require("base/string")
-local table  = require("base/table")
 local log    = require("base/log")
+local io     = require("base/io")
+local dump   = require("base/dump")
+
+-- dump value
+function utils.dump(...)
+    if option.get("quiet") then
+        return ...
+    end
+
+    local diagnosis = option.get("diagnosis")
+
+    -- show caller info
+    if diagnosis then
+        local info = debug.getinfo(2)
+        local line = info.currentline
+        if not line or line < 0 then line = info.linedefined end
+        io.write(string.format("dump form %s %s:%s\n", info.name or "<anonymous>", info.source, line))
+    end
+
+    local values = table.pack(...)
+    if values.n == 0 then
+        return
+    end
+    local indent = nil
+    local values_count = values.n
+    values.n = nil
+    -- use last input as indent if it is a string
+    if values_count > 1 and type(values[values_count]) == "string" then
+        indent = values[values_count]
+        values[values_count] = nil
+        values_count = values_count - 1
+    end
+
+    if values_count == 1 then
+        dump(values[1], indent or "", diagnosis)
+    else
+        for i = 1, values_count do
+            dump(values[i], indent or string.format("%2d: ", i), diagnosis)
+        end
+    end
+
+    return table.unpack(values, 1, values_count)
+end
 
 -- print string with newline
 function utils._print(...)
@@ -43,8 +81,8 @@ function utils._print(...)
             if type(v) == "string" or type(v) == "boolean" or type(v) == "number" then
                 io.write(tostring(v))
             -- dump table
-            elseif type(v) == "table" then  
-                table.dump(v)
+            elseif type(v) == "table" then
+                dump(v)
             else
                 io.write("<" .. tostring(v) .. ">")
             end
@@ -181,6 +219,112 @@ end
 -- ifelse, a? b : c
 function utils.ifelse(a, b, c)
     if a then return b else return c end
+end
+
+-- try to call script
+function utils.trycall(script, traceback, ...)
+    return xpcall(script, function (errors)
+
+            -- get traceback
+            traceback = traceback or debug.traceback
+
+            -- decode it if errors is encoded table string
+            if errors then
+                local _, pos = errors:find("[@encode(error)]: ", 1, true)
+                if pos then
+                    -- strip traceback (maybe from coroutine.resume)
+                    local errs = errors:sub(pos + 1)
+                    local stack = nil
+                    local stackpos = errs:find("}\nstack traceback:", 1, true)
+                    if stackpos and stackpos > 1 then
+                        stack = errs:sub(stackpos + 2)
+                        errs  = errs:sub(1, stackpos)
+                    end
+                    errors, errs = errs:deserialize()
+                    if not errors then
+                        errors = errs
+                    end
+                    if type(errors) == "table" then
+                        if stack then
+                            errors._stack = stack
+                        end
+                        setmetatable(errors, 
+                        { 
+                            __tostring = function (self)
+                                local result = self.errors
+                                if not result then
+                                    result = string.serialize(self, {strip = true, indent = false})
+                                end
+                                result = result or ""
+                                if self._stack then
+                                    result = result .. "\n" .. self._stack
+                                end
+                                return result
+                            end,
+                            __concat = function (self, other)
+                                return tostring(self) .. tostring(other)
+                            end
+                        })
+                    end
+                    return errors
+                end
+            end
+            return traceback(errors)
+        end, ...)
+end
+
+-- get confirm result
+--
+-- @code
+-- if utils.confirm({description = "xmake.lua not found, try generating it", default = true}) then
+--    TODO  
+-- end
+-- @endcode
+--
+function utils.confirm(opt)
+
+    -- init options
+    opt = opt or {}
+
+    -- get default 
+    local default = opt.default
+    if default == nil then
+        default = false
+    end
+
+    -- get description
+    local description = opt.description or ""
+
+    -- get confirm result
+    local confirm = option.get("yes") or option.get("confirm")
+    if type(confirm) == "string" then
+        confirm = confirm:lower()
+        if confirm == "d" or confirm == "def" then
+            confirm = default
+        else
+            confirm = nil
+        end
+    end
+
+    -- get user confirm
+    if confirm == nil then
+
+        -- show tips
+        if type(description) == "function" then
+            description()
+        else
+            utils.cprint("${bright color.warning}note: ${clear}%s (pass -y or --confirm=y/n/d to skip confirm)?", description)
+        end
+        utils.cprint("please input: %s (y/n)", default and "y" or "n")
+
+        -- get answer
+        io.flush()
+        confirm = option.boolean(io.read():trim())
+        if type(confirm) ~= "boolean" then
+            confirm = default
+        end
+    end
+    return confirm
 end
 
 -- return module

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -34,7 +30,7 @@ function _patch(package, patch_url, patch_hash)
     vprint("patching %s to %s-%s ..", patch_url, package:name(), package:version_str())
  
     -- get the patch file
-    local patch_file = path.join(os.tmpdir(), "patches", package:name(), package:version_str(), path.filename(patch_url))
+    local patch_file = path.join(os.tmpdir(), "patches", package:name(), package:version_str(), (path.filename(patch_url):gsub("%?.+$", "")))
 
     -- the package file have been downloaded?
     local cached = true

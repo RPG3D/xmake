@@ -1,12 +1,8 @@
 /*!A cross-platform build utility based on Lua
  *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -52,15 +48,20 @@ typedef struct __xm_charset_entry_t
 // the charsets, @note: type & name is sorted
 static xm_charset_entry_t g_charsets[] =
 {
-    {TB_CHARSET_TYPE_ASCII,     "ascii"   }
-,   {TB_CHARSET_TYPE_GB2312,    "gb2312"  }
-,   {TB_CHARSET_TYPE_GBK,       "gbk"     }
-,   {TB_CHARSET_TYPE_ISO8859,   "iso8859" }
-,   {TB_CHARSET_TYPE_UCS2,      "ucs3"    }
-,   {TB_CHARSET_TYPE_UCS4,      "ucs4"    }
-,   {TB_CHARSET_TYPE_UTF16,     "utf16"   }
-,   {TB_CHARSET_TYPE_UTF32,     "utf32"   }
-,   {TB_CHARSET_TYPE_UTF8,      "utf8"    }
+    {TB_CHARSET_TYPE_ANSI,                          "ansi"    }
+,   {TB_CHARSET_TYPE_ASCII,                         "ascii"   }
+,   {TB_CHARSET_TYPE_GB2312,                        "gb2312"  }
+,   {TB_CHARSET_TYPE_GBK,                           "gbk"     }
+,   {TB_CHARSET_TYPE_ISO8859,                       "iso8859" }
+,   {TB_CHARSET_TYPE_UCS2  | TB_CHARSET_TYPE_NE,    "ucs2"    }
+,   {TB_CHARSET_TYPE_UCS4  | TB_CHARSET_TYPE_NE,    "ucs4"    }
+,   {TB_CHARSET_TYPE_UTF16 | TB_CHARSET_TYPE_NE,    "utf16"   }
+,   {TB_CHARSET_TYPE_UTF16 | TB_CHARSET_TYPE_BE,    "utf16be" }
+,   {TB_CHARSET_TYPE_UTF16 | TB_CHARSET_TYPE_LE,    "utf16le" }
+,   {TB_CHARSET_TYPE_UTF32 | TB_CHARSET_TYPE_NE,    "utf32"   }
+,   {TB_CHARSET_TYPE_UTF32 | TB_CHARSET_TYPE_BE,    "utf32be" }
+,   {TB_CHARSET_TYPE_UTF32 | TB_CHARSET_TYPE_LE,    "utf32le" }
+,   {TB_CHARSET_TYPE_UTF8,                          "utf8"    }
 };
 
 /* //////////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +92,7 @@ static xm_charset_entry_ref_t xm_string_charset_find_by_name(tb_char_t const* na
 /* convert string 
  *
  * @param str       the string
- * @param ftype     the from-charset type, .e.g ascii, gb2312, gbk, ios8859, ucs2, ucs4, utf8, utf16, utf32
+ * @param ftype     the from-charset type, e.g. ascii, gb2312, gbk, ios8859, ucs2, ucs4, utf8, utf16, utf32
  * @param ttype     the to-charset type
  *
  * @code
@@ -114,6 +115,8 @@ tb_int_t xm_string_convert(lua_State* lua)
     // find charsets
     xm_charset_entry_ref_t fcharset = xm_string_charset_find_by_name(ftype_cstr);
     xm_charset_entry_ref_t tcharset = xm_string_charset_find_by_name(ttype_cstr);
+    luaL_argcheck(lua, fcharset, 2, "charset not found");
+    luaL_argcheck(lua, tcharset, 3, "charset not found");
     tb_check_return_val(fcharset && tcharset, 0);
 
     // empty string?
@@ -126,10 +129,10 @@ tb_int_t xm_string_convert(lua_State* lua)
         tb_byte_t*  dst_data = tb_malloc_bytes(dst_maxn);
         if (dst_data && dst_maxn && (dst_size = tb_charset_conv_data(fcharset->type, tcharset->type, (tb_byte_t const*)src_cstr, (tb_size_t)src_size, dst_data, dst_maxn)) >= 0 && dst_size < dst_maxn)
         {
-            dst_data[dst_size] = '\0';
-            lua_pushstring(lua, (tb_char_t const*)dst_data);
+            lua_pushlstring(lua, (tb_char_t const *)dst_data, dst_size);
         }
         else lua_pushnil(lua);
+        tb_free(dst_data);
     }
 
     // ok

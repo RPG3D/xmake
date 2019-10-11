@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -24,6 +20,7 @@
 
 -- imports
 import("core.project.config")
+import("private.tools.vstool")
 
 -- init it
 function init(self)
@@ -90,18 +87,19 @@ end
 
 -- make the linkdir flag
 function nf_linkdir(self, dir)
-    return "-libpath:" .. os.args(dir)
+    return "-libpath:" .. os.args(path.translate(dir))
 end
 
 -- make the link arguments list
-function linkargv(self, objectfiles, targetkind, targetfile, flags)
+function linkargv(self, objectfiles, targetkind, targetfile, flags, opt)
 
     -- init arguments
     local argv = table.join(flags, "-out:" .. targetfile, objectfiles)
 
     -- too long arguments for windows? 
+    opt = opt or {}
     local args = os.args(argv)
-    if #args > 1024 then
+    if #args > 1024 and not opt.rawargs then
         local argsfile = os.tmpfile(args) .. ".args.txt" 
         io.writefile(argsfile, args)
         argv = {"@" .. argsfile}
@@ -110,12 +108,12 @@ function linkargv(self, objectfiles, targetkind, targetfile, flags)
 end
 
 -- link the target file
-function link(self, objectfiles, targetkind, targetfile, flags)
+function link(self, objectfiles, targetkind, targetfile, flags, opt)
 
     -- ensure the target directory
     os.mkdir(path.directory(targetfile))
 
-    -- link it
-    os.runv(linkargv(self, objectfiles, targetkind, targetfile, flags))
+    -- use vstool to link and enable vs_unicode_output @see https://github.com/xmake-io/xmake/issues/528
+    vstool.runv(linkargv(self, objectfiles, targetkind, targetfile, flags, opt))
 end
 

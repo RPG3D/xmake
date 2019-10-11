@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -47,9 +43,16 @@ task("build")
                 ,   {'a', "all",        "k",  nil,          "Build all targets."                                            }
 
                 ,   {}
-                ,   {'j', "jobs",       "kv", "4",          "Specifies the number of jobs to build simultaneously."         }
+                ,   {'j', "jobs",       "kv", tostring(math.ceil(os.cpuinfo().ncpu * 3 / 2)), 
+                                                            "Specifies the number of jobs to build simultaneously."         }
                 ,   {'w', "warning",    "k",  false,        "Enable the warnings output."                                   }
                 ,   {'t', "try",        "k",  false,        "Try building project using third-party buildsystem."           }
+                ,   {nil, "files",      "kv", nil,          "Build the given source files.",
+                                                            "e.g. ",
+                                                            "    - xmake --files=src/main.c", 
+                                                            "    - xmake --files='src/*.c' [target]",
+                                                            "    - xmake --files='src/**c|excluded_file.c'",
+                                                            "    - xmake --files='src/main.c" .. path.envsep() .. "src/test.c'"  }
                
                 ,   {}
                 ,   {nil, "target",     "v",  nil,          "Build the given target."                                       } 

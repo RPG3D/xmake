@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -127,7 +123,7 @@ end
 
 -- load deps 
 --
--- .e.g 
+-- e.g. 
 --
 -- a.deps = b
 -- b.deps = c
@@ -167,6 +163,7 @@ function rule.apis()
             -- rule.on_xxx
             "rule.on_run"
         ,   "rule.on_load"
+        ,   "rule.on_link"
         ,   "rule.on_build"
         ,   "rule.on_build_file"
         ,   "rule.on_build_files"
@@ -177,6 +174,7 @@ function rule.apis()
             -- rule.before_xxx
         ,   "rule.before_run"
         ,   "rule.before_load"
+        ,   "rule.before_link"
         ,   "rule.before_build"
         ,   "rule.before_build_file"
         ,   "rule.before_build_files"
@@ -187,6 +185,7 @@ function rule.apis()
             -- rule.after_xxx
         ,   "rule.after_run"
         ,   "rule.after_load"
+        ,   "rule.after_link"
         ,   "rule.after_build"
         ,   "rule.after_build_file"
         ,   "rule.after_build_files"
@@ -244,23 +243,34 @@ function rule:script(name, generic)
         result = script
     elseif type(script) == "table" then
 
-        -- match script for special plat and arch
-        local plat = (config.get("plat") or "")
-        local pattern = plat .. '|' .. (config.get("arch") or "")
+        -- get plat and arch
+        local plat = config.get("plat") or ""
+        local arch = config.get("arch") or ""
+
+        -- match pattern
+        --
+        -- `@linux`
+        -- `@linux|x86_64`
+        -- `@macosx,linux`
+        -- `android@macosx,linux`
+        -- `android|armv7-a@macosx,linux`
+        -- `android|armv7-a@macosx,linux|x86_64`
+        -- `android|armv7-a@linux|x86_64`
+        --
         for _pattern, _script in pairs(script) do
-            if not _pattern:startswith("__") and pattern:find('^' .. _pattern .. '$') then
+            local hosts = {}
+            local hosts_spec = false
+            _pattern = _pattern:gsub("@(.+)", function (v) 
+                for _, host in ipairs(v:split(',')) do
+                    hosts[host] = true
+                    hosts_spec = true
+                end
+                return "" 
+            end)
+            if not _pattern:startswith("__") and (not hosts_spec or hosts[os.host() .. '|' .. os.arch()] or hosts[os.host()])  
+            and (_pattern:trim() == "" or (plat .. '|' .. arch):find('^' .. _pattern .. '$') or plat:find('^' .. _pattern .. '$')) then
                 result = _script
                 break
-            end
-        end
-
-        -- match script for special plat
-        if result == nil then
-            for _pattern, _script in pairs(script) do
-                if not _pattern:startswith("__") and plat:find('^' .. _pattern .. '$') then
-                    result = _script
-                    break
-                end
             end
         end
 

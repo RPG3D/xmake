@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -15,7 +11,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
--- 
+--
 -- Copyright (C) 2015 - 2019, TBOOX Open Source Group.
 --
 -- @author      ruki
@@ -26,72 +22,136 @@
 import("core.base.option")
 import("core.project.config")
 import("core.project.project")
+import("core.platform.platform")
 import("core.language.language")
-import("detect.tools.find_ccache")
+import("private.tools.ccache")
+import("private.tools.nvcc.parse_deps")
 
 -- init it
 function init(self)
 
-    -- init shflags
-    self:set("cu-shflags", "-shared")
-
-    -- init flags
-    if not is_plat("windows") then
+    -- init cuflags
+    if not is_plat("windows", "mingw") then
         self:set("shared.cuflags", "-Xcompiler -fPIC")
+    end
+
+    -- add -ccbin
+    local cu_ccbin = platform.tool("cu-ccbin")
+    if cu_ccbin then
+        self:add("cuflags", "-ccbin=" .. os.args(cu_ccbin))
     end
 
     -- init flags map
     self:set("mapflags",
     {
         -- warnings
-        ["-W1"] = "-Wall"
-    ,   ["-W2"] = "-Wall"
-    ,   ["-W3"] = "-Wall"
-    })
-
-    -- init buildmodes
-    self:set("buildmodes",
-    {
-        ["object:sources"] = false
+        ["-W4"]            = "-Wreorder"
+    ,   ["-Wextra"]        = "-Wreorder"
+    ,   ["-Weverything"]   = "-Wreorder"
     })
 end
 
 -- make the symbol flag
-function nf_symbol(self, level)
+function nf_symbol(self, level, target)
 
-    -- the maps
-    local maps = 
-    {   
-        debug  = "-g"
-    }
+    -- debug? generate *.pdb file
+    local flags = nil
+    if level == "debug" then
+        flags = "-g -lineinfo"
+        if is_plat("windows") then
+            local host_flags = nil
+            local symbolfile = nil
+            if target and target.symbolfile then
+                symbolfile = target:symbolfile()
+            end
+            if symbolfile then
 
-    -- make it
-    return maps[level] 
+                -- ensure the object directory
+                local symboldir = path.directory(symbolfile)
+                if not os.isdir(symboldir) then
+                    os.mkdir(symboldir)
+                end
+
+                -- check and add symbol output file
+                host_flags = "-Zi -Fd" .. path.join(symboldir, "compile." .. path.filename(symbolfile))
+                if self:has_flags({'-Xcompiler "-Zi -FS -Fd' .. os.nuldev() .. '.pdb"'}, "cuflags", { flagskey = '-Xcompiler "-Zi -FS -Fd"' }) then
+                    host_flags = "-FS " .. host_flags
+                end
+            else
+                host_flags = "-Zi"
+            end
+            flags = flags .. ' -Xcompiler "' .. host_flags .. '"'
+        end
+    end
+
+    -- none
+    return flags
 end
 
 -- make the warning flag
 function nf_warning(self, level)
 
     -- the maps
-    local maps = 
-    {   
-        none  = "-w"
-    ,   less  = "-W1"
-    ,   more  = "-W3"
-    ,   all   = "-Wall"
-    ,   error = "-Werror"
+    local maps =
+    {
+        none       = "-w"
+    ,   everything = "-Wreorder"
+    ,   error      = "-Werror"
     }
 
-    -- make it
-    return maps[level]
+    -- for cl.exe on windows
+    local cl_maps =
+    {
+        none       = "-W0"
+    ,   less       = "-W1"
+    ,   more       = "-W3"
+    ,   all        = "-W3" -- = "-Wall" will enable too more warnings
+    ,   everything = "-Wall"
+    ,   error      = "-WX"
+    }
+
+    -- for gcc & clang on linux, may be work for other gnu compatible compilers such as icc
+    --
+    -- gcc dosen't support `-Weverything`, use `-Wall -Wextra -Weffc++` for it
+    -- no warning will emit for unsupoorted `-W` flags by clang/gcc
+    --
+    local gcc_clang_maps =
+    {
+        none       = "-w"
+    ,   less       = "-Wall"
+    ,   more       = "-Wall"
+    ,   all        = "-Wall"
+    ,   everything = "-Weverything -Wall -Wextra -Weffc++"
+    ,   error      = "-Werror"
+    }
+
+    -- get warning for nvcc
+    local warning = maps[level]
+
+    -- add host warning
+    --
+    -- for cl.exe on windows, it is the only supported host compiler on the platform
+    -- for gcc/clang, or any gnu compatible compiler on *nix
+    --
+    local host_warning = nil
+    if is_plat("windows") then
+        host_warning = cl_maps[level]
+    else
+        host_warning = gcc_clang_maps[level]
+    end
+    if host_warning then
+        warning = ((warning or "") .. ' -Xcompiler "' .. host_warning .. '"'):trim()
+    end
+    return warning
+
 end
 
 -- make the optimize flag
 function nf_optimize(self, level)
 
     -- the maps
-    local maps = 
-    {   
+    local maps =
+    {
         none       = "-O0"
     ,   fast       = "-O1"
     ,   faster     = "-O2"
@@ -101,7 +161,7 @@ function nf_optimize(self, level)
     }
 
     -- make it
-    return maps[level] 
+    return maps[level]
 end
 
 -- make the language flag
@@ -109,7 +169,7 @@ function nf_language(self, stdname)
 
     -- the stdc++ maps
     if _g.cxxmaps == nil then
-        _g.cxxmaps = 
+        _g.cxxmaps =
         {
             cxx03       = "--std c++03"
         ,   cxx11       = "--std c++11"
@@ -179,7 +239,7 @@ end
 -- make the link arguments list
 function linkargv(self, objectfiles, targetkind, targetfile, flags)
 
-    -- add rpath for dylib (macho), .e.g -install_name @rpath/file.dylib
+    -- add rpath for dylib (macho), e.g. -install_name @rpath/file.dylib
     local flags_extra = {}
     if targetkind == "shared" and targetfile:endswith(".dylib") then
         table.insert(flags_extra, "-Xlinker")
@@ -208,45 +268,34 @@ function link(self, objectfiles, targetkind, targetfile, flags)
     os.runv(linkargv(self, objectfiles, targetkind, targetfile, flags))
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function _compargv1(self, sourcefile, objectfile, flags)
-
-    -- get ccache
-    local ccache = nil
-    if config.get("ccache") then
-        ccache = find_ccache()
-    end
-
-    -- make argv
-    local argv = table.join("-c", flags, "-o", objectfile, sourcefile)
-
-    -- uses cache?
-    local program = self:program()
-    if ccache then
-            
-        -- parse the filename and arguments, .e.g "xcrun -sdk macosx clang"
-        if not os.isexec(program) then
-            argv = table.join(program:split("%s"), argv)
-        else 
-            table.insert(argv, 1, program)
-        end
-        return ccache, argv
-    end
-
-    -- no cache
-    return program, argv
+    return ccache.cmdargv(self:program(), table.join("-c", flags, "-o", objectfile, sourcefile))
 end
 
--- complie the source file
+-- compile the source file
 function _compile1(self, sourcefile, objectfile, dependinfo, flags)
 
     -- ensure the object directory
     os.mkdir(path.directory(objectfile))
 
     -- compile it
+    local depfile = dependinfo and os.tmpfile() or nil
     try
     {
         function ()
+            -- support `-M -MF depfile.d`?
+            if depfile and _g._HAS_M_MF == nil then
+                _g._HAS_M_MF = self:has_flags({"-M", "-MF", os.nuldev()}, "cuflags", { flagskey = "-M -MF" }) or false
+            end
+
+            -- generate includes file
+            if depfile and _g._HAS_M_MF then
+                -- since -MD is not supported, run nvcc twice
+                local compflags = table.join(flags, "-M", "-MF", depfile)
+                os.runv(_compargv1(self, sourcefile, objectfile, compflags))
+            end
+
             local outdata, errdata = os.iorunv(_compargv1(self, sourcefile, objectfile, flags))
             return (outdata or "") .. (errdata or "")
         end,
@@ -258,7 +307,8 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
                 os.tryrm(objectfile)
 
                 -- find the start line of error
-                local lines = errors:split("\n")
+                errors = tostring(errors)
+                local lines = errors:split("\n", {plain = true})
                 local start = 0
                 for index, line in ipairs(lines) do
                     if line:find("error:", 1, true) or line:find("错误：", 1, true) then
@@ -283,14 +333,26 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
 
                 -- print some warnings
                 if warnings and #warnings > 0 and (option.get("verbose") or option.get("warning")) then
-                    cprint("${color.warning}%s", table.concat(table.slice(warnings:split('\n'), 1, 8), '\n'))
+                    cprint("${color.warning}%s", table.concat(table.slice(warnings:split('\n', {plain = true}), 1, 8), '\n'))
+                end
+
+                -- generate the dependent includes
+                if depfile and os.isfile(depfile) then
+                    if dependinfo and self:kind() ~= "as" then
+                        local files = dependinfo.files or {}
+                        table.join2(files, parse_deps(depfile))
+                        dependinfo.files = table.unique(files)
+                    end
+
+                    -- remove the temporary dependent file
+                    os.tryrm(depfile)
                 end
             end
         }
     }
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function compargv(self, sourcefiles, objectfile, flags)
 
     -- only support single source file now
@@ -300,7 +362,7 @@ function compargv(self, sourcefiles, objectfile, flags)
     return _compargv1(self, sourcefiles, objectfile, flags)
 end
 
--- complie the source file
+-- compile the source file
 function compile(self, sourcefiles, objectfile, dependinfo, flags)
 
     -- only support single source file now

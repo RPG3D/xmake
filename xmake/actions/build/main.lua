@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -29,6 +25,7 @@ import("core.project.config")
 import("core.project.project")
 import("core.platform.platform")
 import("build")
+import("build_files")
 import("cleaner")
 import("trybuild")
 import("statistics")
@@ -40,6 +37,9 @@ function main()
     if not os.isfile(project.file()) and option.get("try") then
         return trybuild() 
     end
+
+    -- lock the whole project
+    project.lock()
 
     -- get the target name
     local targetname = option.get("target")
@@ -60,7 +60,12 @@ function main()
     try
     {
         function ()
-            build(targetname) 
+            local sourcefiles = option.get("files")
+            if sourcefiles then
+                build_files(targetname, sourcefiles)
+            else
+                build(targetname) 
+            end
         end,
 
         catch 
@@ -77,11 +82,14 @@ function main()
         }
     }
 
+    -- unlock the whole project
+    project.unlock()
+
     -- leave project directory
     os.cd(oldir)
 
     -- trace
     if option.get("rebuild") then
-        cprint("${bright}build ok!${clear}${ok_hand}")
+        cprint("${bright}build ok!${clear}")
     end
 end

@@ -47,25 +47,17 @@
 
 xmake is a cross-platform build utility based on lua. 
 
-The project focuses on making development and building easier and provides many features (.e.g package, install, plugin, macro, action, option, task ...), 
-so that any developer can quickly pick it up and enjoy the productivity boost when developing and building project.
+The project focuses on making development and building easier and provides many features (e.g package, install, plugin, macro, action, option, task ...), 
+so that any developer can quickly pick it up and enjoy a productivity boost when developing and building projects.
 
-If you want to known more, please refer to:
+<img src="https://xmake.io/assets/img/index/package_manage.png" width="650px" />
+
+If you want to know more, please refer to:
 
 * [Documents](https://xmake.io/#/home)
 * [HomePage](https://xmake.io)
 * [Github](https://github.com/xmake-io/xmake)
 * [Gitee](https://gitee.com/tboox/xmake)
-
-```
-                         _        
-    __  ___ __  __  __ _| | ______ 
-    \ \/ / |  \/  |/ _  | |/ / __ \
-     >  <  | \__/ | /_| |   <  ___/
-    /_/\_\_|_|  |_|\__ \|_|\_\____| 
-
-                         by ruki, tboox.org
-```
 
 ## Installation
 
@@ -89,11 +81,11 @@ Invoke-Expression (Invoke-Webrequest 'https://raw.githubusercontent.com/xmake-io
 
 ## Simple description
 
-<img src="https://xmake.io/assets/img/index/showcode1.png" width="40%" />
+<img src="https://xmake.io/assets/img/index/showcode1.png" width="340px" />
 
 ## Package dependences
 
-<img src="https://xmake.io/assets/img/index/add_require.png" width="70%" />
+<img src="https://xmake.io/assets/img/index/add_require.png" width="600px" />
 
 An official xmake package repository: [xmake-repo](https://github.com/xmake-io/xmake-repo)
 
@@ -128,11 +120,17 @@ $ xmake
 $ xmake f --menu
 ```
 
-<img src="https://xmake.io/assets/img/index/menuconf.png" width="80%" />
+<img src="https://xmake.io/assets/img/index/menuconf.png" width="650px" />
 
 ## Package management
 
-<img src="https://xmake.io/assets/img/index/package_manage.png" width="80%" />
+### Download and build
+
+<img src="https://xmake.io/assets/img/index/package_manage.png" width="650px" />
+
+### Processing architecture
+
+<img src="https://xmake.io/assets/img/index/package_arch.png" width="650px" />
 
 ## Supported platforms
 
@@ -165,8 +163,17 @@ $ xmake f --menu
 * Qt Application
 * WDK Driver (umdf/kmdf/wdm)
 * WinSDK Application
+* MFC Application
 
 ## Builtin Plugins
+
+#### Generate IDE project file plugin（makefile, vs2002 - vs2019 .. ）
+
+```bash
+$ xmake project -k vs2017 -m "debug,release"
+$ xmake project -k cmakelists
+$ xmake project -k compile_commands
+```
 
 #### Macros script plugin
 
@@ -188,12 +195,6 @@ $ xmake l -c "print('hello xmake!')"
 $ xmake l lib.detect.find_tool gcc
 ```
 
-#### Generate IDE project file plugin（makefile, vs2002 - vs2017 .. ）
-
-```bash
-$ xmake project -k vs2017 -m "debug,release"
-```
-
 #### Generate doxygen document plugin
 
 ```bash
@@ -208,15 +209,15 @@ Please download and install from the plugins repository [xmake-plugins](https://
 
 * [xmake-vscode](https://github.com/xmake-io/xmake-vscode)
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-vscode/master/res/problem.gif" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-vscode/master/res/problem.gif" width="650px" />
 
 * [xmake-sublime](https://github.com/xmake-io/xmake-sublime)
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-sublime/master/res/problem.gif" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-sublime/master/res/problem.gif" width="650px" />
 
 * [xmake-idea](https://github.com/xmake-io/xmake-idea)
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/problem.gif" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/problem.gif" width="650px" />
 
 * [xmake.vim](https://github.com/luzhlon/xmake.vim) (third-party, thanks [@luzhlon](https://github.com/luzhlon))
 
@@ -235,17 +236,26 @@ target("console")
     end
 ```
 
-Download and use remote packages:
+Download and use packages in [xmake-repo](https://github.com/xmake-io/xmake-repo):
 
 ```lua
 add_requires("libuv master", "ffmpeg", "zlib 1.20.*")
 add_requires("tbox >1.6.1", {optional = true, debug = true})
+target("test")
+    set_kind("shared")
+    add_files("src/*.c")
+    add_packages("libuv", "ffmpeg", "tbox", "zlib")
+```
+
+Download and use packages in third-party package manager:
+
+```lua
 add_requires("brew::pcre2/libpcre2-8", {alias = "pcre2"})
 add_requires("conan::OpenSSL/1.0.2n@conan/stable", {alias = "openssl"}) 
 target("test")
     set_kind("shared")
     add_files("src/*.c")
-    add_packages("libuv", "ffmpeg", "tbox", "zlib", "pcre2", "openssl")
+    add_packages("pcre2", "openssl")
 ```
 
 Find and use local packages:
@@ -271,7 +281,7 @@ Some projects using xmake:
 ## Example Video
 
 <a href="https://asciinema.org/a/133693">
-<img src="https://asciinema.org/a/133693.png" width="60%" />
+<img src="https://asciinema.org/a/133693.png" width="650px" />
 </a>
 
 ## Contacts
@@ -281,6 +291,8 @@ Some projects using xmake:
 * Community：[/r/tboox on reddit](https://www.reddit.com/r/tboox/)
 * ChatRoom：[Char on telegram](https://t.me/tbooxorg), [Chat on gitter](https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * Source Code：[Github](https://github.com/xmake-io/xmake), [Gitee](https://gitee.com/tboox/xmake)
+* QQ Group: 343118190(full), 662147501
+* Wechat Public: tboox-os
 
 ## Thanks
 
@@ -289,6 +301,7 @@ This project exists thanks to all the people who have [contributed](CONTRIBUTING
 
 * [TitanSnow](https://github.com/TitanSnow): provide the xmake [logo](https://github.com/TitanSnow/ts-xmake-logo) and install scripts
 * [uael](https://github.com/uael): provide the semantic versioning library [sv](https://github.com/uael/sv)
+* [OpportunityLiu](https://github.com/OpportunityLiu): improve cuda, tests and ci
 
 ## Backers
 

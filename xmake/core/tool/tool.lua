@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -110,25 +106,31 @@ function _instance:get(name)
 end
 
 -- has the given flag?
-function _instance:has_flags(flags, flagkind)
+function _instance:has_flags(flags, flagkind, opt)
 
-    -- import has_flags()
-    self._has_flags = self._has_flags or import("lib.detect.has_flags")
+    -- init options
+    opt = opt or {}
+    opt.program = opt.program or self:program()
+    opt.toolkind = opt.toolkind or self:kind()
+    opt.flagkind = opt.flagkind or flagkind
 
     -- get system flags
-    local sysflags = self:get(self:kind() .. 'flags') 
-    if not sysflags and flagkind then
-        sysflags = self:get(flagkind)
+    opt.sysflags = opt.sysflags or self:get(self:kind() .. 'flags')
+    if not opt.sysflags and flagkind then
+        opt.sysflags = self:get(flagkind)
     end
 
+    -- import has_flags()
+    self._has_flags = self._has_flags or import("lib.detect.has_flags", {anonymous = true})
+
     -- has flags?
-    return self._has_flags(self:name(), flags, {program = self:program(), toolkind = self:kind(), flagkind = flagkind, sysflags = sysflags})
+    return self._has_flags(self:name(), flags, opt)
 end
 
 -- load the given tool from the given kind
 --
--- @param kind      the tool kind .e.g cc, cxx, mm, mxx, as, ar, ld, sh, ..
--- @param program   the tool program, .e.g /xxx/arm-linux-gcc, gcc@mipscc.exe
+-- @param kind      the tool kind e.g. cc, cxx, mm, mxx, as, ar, ld, sh, ..
+-- @param program   the tool program, e.g. /xxx/arm-linux-gcc, gcc@mipscc.exe
 --
 function tool.load(kind, program)
 
@@ -141,7 +143,7 @@ function tool.load(kind, program)
         return tool._TOOLS[key]
     end
 
-    -- contain toolname? parse it, .e.g 'gcc@xxxx.exe'
+    -- contain toolname? parse it, e.g. 'gcc@xxxx.exe'
     local toolname = nil
     if program then
         local pos = program:find('@', 1, true)

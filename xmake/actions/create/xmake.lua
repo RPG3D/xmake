@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -42,8 +38,7 @@ task("create")
                 -- options
             ,   options = 
                 {
-                    {'n', "name",       "kv", nil,          "The project name."                                             }
-                ,   {'l', "language",   "kv", "c",          "The project language"
+                    {'l', "language",   "kv", "c++",        "The project language"
 
                                                             -- show the description of all languages
                                                           , function ()
@@ -68,20 +63,27 @@ task("create")
                                                                 -- import template
                                                                 import("core.project.template")
 
-                                                                -- make description
+                                                                -- get templates
                                                                 local templates = {}
-                                                                local description = {}
                                                                 for _, l in ipairs(template.languages()) do
                                                                     for _, t in ipairs(template.templates(l)) do
-                                                                        templates[t.name] = templates[t.name] or {}
-                                                                        table.insert(templates[t.name], l)
+                                                                        templates[t:name()] = templates[t:name()] or {}
+                                                                        table.insert(templates[t:name()], l)
                                                                     end
                                                                 end
-                                                                for name, languages in pairs(templates) do
-                                                                    table.insert(description, "    - " .. name .. ": " .. table.concat(languages, ", "))
-                                                                end
 
-                                                                -- get it
+                                                                -- get sorted templates
+                                                                local templates_sorted = {}
+                                                                for name, languages in pairs(templates) do
+                                                                    table.insert(templates_sorted, {name = name, languages = languages})
+                                                                end
+                                                                table.sort(templates_sorted, function(a, b) return a.name < b.name end)
+
+                                                                -- make description
+                                                                local description = {}
+                                                                for _, t in ipairs(templates_sorted) do
+                                                                    table.insert(description, "    - " .. t.name .. ": " .. table.concat(t.languages, ", "))
+                                                                end
                                                                 return description
                                                             end                                                             }
 

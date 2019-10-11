@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -31,50 +27,43 @@ import("core.project.project")
 import("core.platform.platform")
 import("core.platform.environment")
 import("devel.debugger")
+import("private.action.run.make_runenvs")
 
--- run target 
+-- run target
 function _do_run_target(target)
-    if target:targetkind() == "binary" then
 
-        -- get the absolute target file path
-        local targetfile = path.absolute(target:targetfile())
-
-        -- enter the target directory
-        local oldir = os.cd(path.directory(target:targetfile()))
-
-        -- add search directories for all dependent shared libraries on windows
-        if is_plat("windows") or (is_plat("mingw") and is_host("windows")) then
-            local searchdirs = {}
-            for _, linkdir in ipairs(target:get("linkdirs")) do
-                if not searchdirs[linkdir] then
-                    searchdirs[linkdir] = true
-                    os.addenv("PATH", linkdir)
-                end
-            end
-            for _, dep in ipairs(target:orderdeps()) do
-                if dep:targetkind() == "shared" then
-                    local depdir = dep:targetdir()
-                    if not path.is_absolute(depdir) then
-                        depdir = path.absolute(depdir, os.projectdir())
-                    end
-                    if not searchdirs[depdir] then
-                        searchdirs[depdir] = true
-                        os.addenv("PATH", depdir)
-                    end
-                end
-            end
-        end
-
-        -- debugging?
-        if option.get("debug") then
-            debugger.run(targetfile, option.get("arguments"))
-        else
-            os.execv(targetfile, option.get("arguments"))
-        end
-
-        -- restore the previous directory
-        os.cd(oldir)
+    -- only for binary program
+    if target:targetkind() ~= "binary" then
+        return
     end
+
+    -- get the run directory of target
+    local rundir = target:rundir()
+
+    -- get the absolute target file path
+    local targetfile = path.absolute(target:targetfile())
+
+    -- enter the run directory
+    local oldir = os.cd(rundir)
+
+    -- add run environments
+    local addrunenvs, setrunenvs = make_runenvs(target)
+    for name, values in pairs(addrunenvs) do
+        os.addenv(name, unpack(table.wrap(values)))
+    end
+    for name, value in pairs(setrunenvs) do
+        os.setenv(name, unpack(table.wrap(value)))
+    end
+
+    -- debugging?
+    if option.get("debug") then
+        debugger.run(targetfile, option.get("arguments"))
+    else
+        os.execv(targetfile, option.get("arguments"))
+    end
+
+    -- restore the previous directory
+    os.cd(oldir)
 end
 
 -- run target 
@@ -82,7 +71,7 @@ function _on_run_target(target)
 
     -- has been disabled?
     if target:get("enabled") == false then
-        return 
+        return
     end
 
     -- build target with rules

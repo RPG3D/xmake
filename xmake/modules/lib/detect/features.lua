@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -28,7 +24,7 @@ import("lib.detect.find_tool")
 -- get all features of the current tool
 --
 -- @param name      the tool name
--- @param opt       the argument options, .e.g {program = "", flags = {}}
+-- @param opt       the argument options, e.g. {program = "", flags = {}}
 --
 -- @return          the features dictionary
 --
@@ -60,7 +56,7 @@ function main(name, opt)
     _g._RESULTS = _g._RESULTS or {}
     local results = _g._RESULTS
     
-    -- @note avoid detect the same program in the same time if running in the coroutine (.e.g ccache)
+    -- @note avoid detect the same program in the same time if running in the coroutine (e.g. ccache)
     local coroutine_running = coroutine.running()
     if coroutine_running then
         while _g._checking ~= nil and _g._checking == key do

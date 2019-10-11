@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -56,7 +52,7 @@ rule("qt.qrc")
         local rcc = target:data("qt.rcc")
 
         -- get c++ source file for qrc
-        local sourcefile_cpp = path.join(config.buildir(), ".qt", "qrc", target:name(), path.basename(sourcefile_qrc) .. ".cpp")
+        local sourcefile_cpp = path.join(target:autogendir(), "rules", "qt", "qrc", path.basename(sourcefile_qrc) .. ".cpp")
         local sourcefile_dir = path.directory(sourcefile_cpp)
 
         -- get object file
@@ -70,9 +66,6 @@ rule("qt.qrc")
 
         -- add objectfile
         table.insert(target:objectfiles(), objectfile)
-
-        -- add clean files
-        target:data_add("qt.cleanfiles", {sourcefile_cpp, objectfile})
 
         -- load dependent info 
         local dependfile = target:dependfile(objectfile)
@@ -107,7 +100,7 @@ rule("qt.qrc")
 
         -- compile c++ source file for qrc
         dependinfo.files = {}
-        compinst:compile(sourcefile_cpp, objectfile, {dependinfo = dependinfo, compflags = compflags})
+        assert(compinst:compile(sourcefile_cpp, objectfile, {dependinfo = dependinfo, compflags = compflags}))
 
         -- update files and values to the dependent file
         dependinfo.values = depvalues

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -26,11 +22,14 @@
 local path = path or {}
 
 -- load modules
-local utils     = require("base/utils")
 local string    = require("base/string")
 
 -- get the directory of the path
 function path.directory(p)
+
+    -- check
+    assert(p)
+
     local i = p:find_last("[/\\]")
     if i then
         if i > 1 then i = i - 1 end
@@ -42,6 +41,10 @@ end
 
 -- get the filename of the path
 function path.filename(p)
+
+    -- check
+    assert(p)
+
     local i = p:find_last("[/\\]")
     if i then
         return p:sub(i + 1)
@@ -52,6 +55,10 @@ end
 
 -- get the basename of the path
 function path.basename(p)
+
+    -- check
+    assert(p)
+
     local name = path.filename(p)
     local i = name:find_last(".", true)
     if i then
@@ -93,24 +100,104 @@ end
 
 -- split path by the separator
 function path.split(p)
+
+    -- check
+    assert(p)
+
     return p:split("/\\")
 end
 
 -- get the path seperator
-function path.seperator()
+function path.sep()
     return xmake._HOST == "windows" and '\\' or '/'
+end
+
+-- get the path seperator of environment variable
+function path.envsep()
+    return xmake._HOST == "windows" and ';' or ':'
+end
+
+-- split environment variable with `path.envsep()`,
+-- also handles more speical cases such as posix flags and windows quoted pathes
+function path.splitenv(env_path)
+
+    -- check
+    assert(env_path)
+
+    local result = {}
+    if xmake._HOST == "windows" then
+        while #env_path > 0 do
+            if env_path:startswith(path.envsep()) then
+                env_path = env_path:sub(2)
+            elseif env_path:startswith('"') then
+                -- path quoted with, can contain `;`
+                local p_end = env_path:find('"' .. path.envsep(), 2, true) or env_path:find('"$', 2) or (#env_path + 1)
+                table.insert(result, env_path:sub(2, p_end - 1))
+                env_path = env_path:sub(p_end + 1)
+            else
+                local p_end = env_path:find(path.envsep(), 2, true) or (#env_path + 1)
+                table.insert(result, env_path:sub(1, p_end - 1))
+                env_path = env_path:sub(p_end)
+            end
+        end
+    else
+        -- see https://git.kernel.org/pub/scm/utils/dash/dash.git/tree/src/exec.c?h=v0.5.9.1&id=afe0e0152e4dc12d84be3c02d6d62b0456d68580#n173
+        -- no escape sequences, so `:` and `%` is invalid in environment variable
+        for _, v in ipairs(env_path:split(path.envsep(), { plain = true })) do
+            -- flag for shells, style `<path>%<flag>`
+            local flag = v:find("%", 1, true)
+            if flag then
+                v = v:sub(1, flag - 1)
+            end
+            if #v > 0 then
+                table.insert(result, v)
+            end
+        end
+    end
+
+    return result
+end
+
+-- concat environment variable with `path.envsep()`,
+-- also handles more speical cases such as posix flags and windows quoted pathes
+function path.joinenv(env_table)
+
+    -- check
+    if not env_table or #env_table == 0 then
+        return ""
+    end
+
+    local envsep = path.envsep()
+    if xmake._HOST == "windows" then
+        local tab = {}
+        for _, v in ipairs(env_table) do
+            if v ~= "" then
+                if v:find(envsep, 1, true) then
+                    v = '"' .. v .. '"'
+                end
+                table.insert(tab, v)
+            end
+        end
+        return table.concat(tab, envsep)
+    else
+        return table.concat(env_table, envsep)
+    end
 end
 
 -- the last character is the path seperator?
 function path.islastsep(p)
+
+    -- check
+    assert(p)
+
     local sep = p:sub(#p, #p)
     return xmake._HOST == "windows" and (sep == '\\' or sep == '/') or (sep == '/')
 end
 
 -- convert path pattern to a lua pattern
 function path.pattern(pattern)
-    
-    -- translate wildcards, .e.g *, **
+
+    -- translate wildcards, e.g. *, **
     pattern = pattern:gsub("([%+%.%-%^%$%(%)%%])", "%%%1")
     pattern = pattern:gsub("%*%*", "\001")
     pattern = pattern:gsub("%*", "\002")

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -25,7 +21,6 @@
 -- imports
 import("core.project.config")
 import("core.project.project")
-import("core.project.template")
 import("core.language.language")
 
 -- scan project and generate xmake.lua automaticlly if the project codes exist
@@ -67,9 +62,6 @@ function main()
     sourcefiles         = table.unique(sourcefiles)
     sourcefiles_main    = table.unique(sourcefiles_main)
 
-    -- remove config directory first
-    os.rm(config.directory())
-        
     -- project not found
     if #sourcefiles == 0 and #sourcefiles_main == 0 then
         raise("project not found!")
@@ -152,7 +144,7 @@ function main()
         end
 
         -- add FAQ 
-        file:print(template.faq())
+        file:print(io.readfile(path.join(os.programdir(), "scripts", "faq.lua")))
     
         -- exit file
         file:close()
@@ -164,5 +156,5 @@ function main()
     end
 
     -- trace
-    cprint("${bright}xmake.lua generated, scan ok!${clear}${ok_hand}")
+    cprint("${bright}xmake.lua generated, scan ok!${clear}")
 end

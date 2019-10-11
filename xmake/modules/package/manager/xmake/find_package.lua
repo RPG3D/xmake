@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -35,9 +31,14 @@ import("lib.detect.find_library")
 -- find package from the repository (maybe only include and no links)
 function _find_package_from_repo(name, opt)
 
-    -- find the manifest file of package, .e.g ~/.xmake/packages/z/zlib/1.1.12/ed41d5327fad3fc06fe376b4a94f62ef/manifest.txt 
+    -- check options
+    if not opt.version or not opt.buildhash then
+        return 
+    end
+
+    -- find the manifest file of package, e.g. ~/.xmake/packages/z/zlib/1.1.12/ed41d5327fad3fc06fe376b4a94f62ef/manifest.txt 
     local packagedirs = {}
-    table.insert(packagedirs, path.join(package.installdir(), name:sub(1, 1), name, opt.version or "*", opt.buildhash))
+    table.insert(packagedirs, path.join(package.installdir(), name:sub(1, 1), name, opt.version, opt.buildhash))
     local manifest_file = find_file("manifest.txt", packagedirs)
     if not manifest_file then
         return 
@@ -107,7 +108,7 @@ function _find_package_from_repo(name, opt)
         table.insert(linkdirs, path.join(installdir, "lib"))
     end
 
-    -- uses name as links directly .e.g libname.a
+    -- uses name as links directly e.g. libname.a
     if #links == 0 then
         links = table.wrap(name)
     end
@@ -151,7 +152,7 @@ end
 -- find package from the package directories
 function _find_package_from_packagedirs(name, opt)
 
-    -- get package path (.e.g name.pkg) in the package directories
+    -- get package path (e.g. name.pkg) in the package directories
     local packagepath = nil
     for _, dir in ipairs(table.wrap(opt.packagedirs)) do
         local p = path.join(dir, name .. ".pkg")
@@ -164,7 +165,7 @@ function _find_package_from_packagedirs(name, opt)
         return 
     end
 
-    -- get package file (.e.g name.pkg/xmake.lua)
+    -- get package file (e.g. name.pkg/xmake.lua)
     local packagefile = path.join(packagepath, "xmake.lua")
     if not os.isfile(packagefile) then
         return 
@@ -247,7 +248,7 @@ end
 -- find package using the xmake package manager
 --
 -- @param name  the package name
--- @param opt   the options, .e.g {verbose = true, version = "1.12.x", buildhash = "xxxxxx")
+-- @param opt   the options, e.g. {verbose = true, version = "1.12.x", buildhash = "xxxxxx")
 --
 function main(name, opt)
 

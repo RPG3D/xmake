@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -30,7 +26,7 @@ import("privilege.sudo")
 -- install package
 --
 -- @param name  the package name
--- @param opt   the options, .e.g {verbose = true, apt = "the package name"}
+-- @param opt   the options, e.g. {verbose = true, apt = "the package name"}
 --
 -- @return      true or false
 --
@@ -54,23 +50,9 @@ function main(name, opt)
     -- install with administrator permission?
     elseif sudo.has() then
 
-        -- get confirm
-        local confirm = option.get("yes")
-        if confirm == nil then
-
-            -- show tips
-            cprint("${bright color.warning}note: ${clear}try installing %s with administrator permission?", name)
-            cprint("please input: y (y/n)")
-
-            -- get answer
-            io.flush()
-            local answer = io.read()
-            if answer == 'y' or answer == '' then
-                confirm = true
-            end
-        end
-
         -- install it if be confirmed
+        local description = format("try installing %s with administrator permission", name)
+        local confirm = utils.confirm({default = true, description = description})
         if confirm then
             sudo.vrunv(apt.program, argv)
         end

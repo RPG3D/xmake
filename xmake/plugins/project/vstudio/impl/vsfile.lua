@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -26,51 +22,51 @@
 _g.indentchar = '\t'
 
 -- print file
-function _print(self, ...)
+function _print_impl(self, ...)
 
     -- print indent
     for i = 1, self._indent do
-        self:_write(_g.indentchar)
+        self:_write_impl(_g.indentchar)
     end
 
     -- print it
-    self:_print(...)
+    self:_print_impl(...)
 end
 
 -- printf file
-function _printf(self, ...)
+function _printf_impl(self, ...)
 
     -- print indent
     for i = 1, self._indent do
-        self:_write(_g.indentchar)
+        self:_write_impl(_g.indentchar)
     end
 
     -- printf it
-    self:_printf(...)
+    self:_printf_impl(...)
 end
 
 -- write file
-function _write(self, ...)
+function _write_impl(self, ...)
 
     -- print indent
     for i = 1, self._indent do
-        self:_write(_g.indentchar)
+        self:_write_impl(_g.indentchar)
     end
 
     -- write it
-    self:_write(...)
+    self:_write_impl(...)
 end
 
 -- writef file
-function _writef(self, ...)
+function _writef_impl(self, ...)
 
     -- print indent
     for i = 1, self._indent do
-        self:_write(_g.indentchar)
+        self:_write_impl(_g.indentchar)
     end
 
     -- writef it
-    self:_writef(...)
+    self:_writef_impl(...)
 end
 
 -- enter and print file
@@ -104,14 +100,14 @@ function open(filepath, mode)
     local file = io.open(filepath, mode)
 
     -- hook print, printf and write
-    file._print     = file.print
-    file._printf    = file.printf
-    file._write     = file.write
-    file._writef    = file.writef
-    file.print      = _print
-    file.printf     = _printf
-    file.write      = _write
-    file.writef     = _writef
+    file._print_impl  = file.print
+    file._printf_impl = file.printf
+    file._write_impl  = file.write
+    file._writef_impl = file.writef
+    file.print        = _print_impl
+    file.printf       = _printf_impl
+    file.write        = _write_impl
+    file.writef       = _writef_impl
 
     -- add enter and leave interfaces
     file.enter  = _enter 

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -55,14 +51,11 @@ rule("qt.ui")
         local uic = target:data("qt.uic")
 
         -- get c++ header file for ui
-        local headerfile_ui = path.join(config.buildir(), ".qt", "ui", target:name(), "ui_" .. path.basename(sourcefile_ui) .. ".h")
+        local headerfile_ui = path.join(target:autogendir(), "rules", "qt", "ui", "ui_" .. path.basename(sourcefile_ui) .. ".h")
         local headerfile_dir = path.directory(headerfile_ui)
 
         -- add includedirs
         target:add("includedirs", path.absolute(headerfile_dir, os.projectdir()))
-
-        -- add clean files
-        target:data_add("qt.cleanfiles", headerfile_ui)
 
         -- need build this object?
         local dependfile = target:dependfile(headerfile_ui)
@@ -91,4 +84,3 @@ rule("qt.ui")
         dependinfo.files = {sourcefile_ui}
         depend.save(dependinfo, dependfile)
     end)
-

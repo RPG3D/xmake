@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -44,12 +40,6 @@ function init(self)
     ,   ["-ftrapv"]                 = ""
     ,   ["-fsanitize=address"]      = ""
     })
-
-    -- init buildmodes
-    self:set("buildmodes",
-    {
-        ["object:sources"]          = false
-    })
 end
 
 -- make the define flag
@@ -57,12 +47,12 @@ function nf_define(self, macro)
     return "-d" .. macro
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function _compargv1(self, sourcefile, objectfile, flags)
     return self:program(), table.join(flags, sourcefile, objectfile)
 end
 
--- complie the source file
+-- compile the source file
 function _compile1(self, sourcefile, objectfile, dependinfo, flags)
 
     -- ensure the object directory
@@ -72,7 +62,7 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
     os.runv(_compargv1(self, sourcefile, objectfile, flags))
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function compargv(self, sourcefiles, objectfile, flags)
 
     -- only support single source file now
@@ -82,7 +72,7 @@ function compargv(self, sourcefiles, objectfile, flags)
     return _compargv1(self, sourcefiles, objectfile, flags)
 end
 
--- complie the source file
+-- compile the source file
 function compile(self, sourcefiles, objectfile, dependinfo, flags)
 
     -- only support single source file now

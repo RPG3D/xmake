@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -107,6 +103,11 @@ function _instance:extensions()
     return extensions
 end
 
+-- get the rules
+function _instance:rules()
+    return self._INFO:get("rules")
+end
+
 -- get the source kinds
 function _instance:sourcekinds()
     return self._INFO:get("sourcekinds")
@@ -119,7 +120,7 @@ end
 
 -- get the target kinds (targetkind => linkerkind)
 --
--- .e.g
+-- e.g.
 -- {binary = "ld", static = "ar", shared = "sh"}
 --
 function _instance:targetkinds()
@@ -128,7 +129,7 @@ end
 
 -- get the target flags (targetkind => linkerflag)
 --
--- .e.g
+-- e.g.
 -- {binary = "ldflags", static = "arflags", shared = "shflags"}
 --
 function _instance:targetflags()
@@ -137,7 +138,7 @@ end
 
 -- get the mixing kinds for linker
 --
--- .e.g
+-- e.g.
 -- {"cc", "cxx"}
 --
 function _instance:mixingkinds()
@@ -166,7 +167,7 @@ function _instance:nameflags()
         for _, namedflag in ipairs(nameflags) do
 
             -- split it by '.'
-            local splitinfo = namedflag:split('.')
+            local splitinfo = namedflag:split('.', {plain = true})
             assert(#splitinfo == 2)
 
             -- get flag scope
@@ -225,6 +226,8 @@ function language._interpreter()
         {
             -- language.set_xxx
             "language.set_mixingkinds"
+            -- language.add_xxx
+        ,   "language.add_rules"
         }
     ,   script =
         {
@@ -425,7 +428,7 @@ end
 
 -- get language source extensions
 --
--- .e.g
+-- e.g.
 --
 -- {
 --      [".c"]      = cc
@@ -465,7 +468,7 @@ end
 
 -- get language source kinds
 --
--- .e.g
+-- e.g.
 --
 -- {
 --      cc  = ".c"
@@ -504,7 +507,7 @@ end
 
 -- get language source flags
 --
--- .e.g
+-- e.g.
 --
 -- {
 --      cc  = {"cflags", "cxflags"}
@@ -617,7 +620,7 @@ function language.linkerinfos_of(targetkind, sourcekinds)
 
     -- find suitable linkers
     local results = {}
-    for _, linkerinfo in pairs(linkerinfos[targetkind]) do
+    for _, linkerinfo in pairs(table.wrap(linkerinfos[targetkind])) do
 
         -- match all source kinds?
         local count = 0
@@ -640,7 +643,7 @@ end
 
 -- get language target kinds
 --
--- .e.g
+-- e.g.
 --
 -- {
 --      binary = {"ld", "gc-ld", "dc-ld"}
@@ -682,7 +685,7 @@ end
 
 -- get language kinds (langkind => sourcekind)
 --
--- .e.g
+-- e.g.
 --
 -- {
 --      c           = "cc"

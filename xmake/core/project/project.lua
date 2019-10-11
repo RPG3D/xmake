@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -300,6 +296,16 @@ function project.directory()
     return os.projectdir()
 end
 
+-- get the filelock of the whole project directory
+function project.filelock()
+    local filelock = project._FILELOCK
+    if filelock == nil then
+        filelock = io.openlock(path.join(config.directory(), "project.lock"))
+        project._FILELOCK = filelock 
+    end
+    return filelock
+end
+
 -- get the project info from the given name
 function project.get(name)
     return project._INFO and project._INFO:get(name) or nil
@@ -354,9 +360,9 @@ function project._load(force, disable_filter)
     return true
 end
 
--- load deps for instance: .e.g option, target and rule
+-- load deps for instance: e.g. option, target and rule
 --
--- .e.g 
+-- e.g. 
 --
 -- a.deps = b
 -- b.deps = c
@@ -502,9 +508,9 @@ function project._load_targets()
         t._ORDERDEPS = t._ORDERDEPS or {}
         project._load_deps(t, targets, t._DEPS, t._ORDERDEPS)
 
-        -- load rules
+        -- load rules from target and language
         --
-        -- .e.g 
+        -- e.g. 
         --
         -- a.deps = b
         -- b.deps = c
@@ -513,7 +519,15 @@ function project._load_targets()
         --
         t._RULES      = t._RULES or {}
         t._ORDERULES  = t._ORDERULES or {}
-        for _, rulename in ipairs(table.wrap(t:get("rules"))) do
+        local rulenames = {}
+        table.join2(rulenames, t:get("rules"))
+        for _, sourcefile in ipairs(table.wrap(t:get("files"))) do
+            local lang = language.load_ex(path.extension(sourcefile))
+            if lang and lang:rules() then
+                table.join2(rulenames, lang:rules())
+            end
+        end
+        for _, rulename in ipairs(rulenames) do
             local r = project.rule(rulename) or rule.rule(rulename)
             if r then
                 t._RULES[rulename] = r
@@ -664,7 +678,7 @@ function project._load_requires()
     for _, requirestr in ipairs(table.wrap(requires_str)) do
 
         -- get the package name
-        local packagename = requirestr:split('%s+')[1]
+        local packagename = requirestr:split('%s')[1]
 
         -- get alias
         local alias = nil

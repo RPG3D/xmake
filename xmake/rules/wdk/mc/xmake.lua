@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -52,9 +48,6 @@ rule("wdk.mc")
         
         -- save mc
         target:data_set("wdk.mc", mc)
-
-        -- save output directory
-        target:data_set("wdk.mc.outputdir", path.join(config.buildir(), ".wdk", "mc", config.get("mode") or "generic", config.get("arch") or os.arch(), target:name()))
     end)
 
     -- before build file
@@ -69,7 +62,7 @@ rule("wdk.mc")
         local mc = target:data("wdk.mc")
 
         -- get output directory
-        local outputdir = target:data("wdk.mc.outputdir")
+        local outputdir = path.join(target:autogendir(), "rules", "wdk", "mc")
 
         -- init args
         local args = {}
@@ -92,7 +85,6 @@ rule("wdk.mc")
         if headerfile then
             table.insert(args, "-z")
             table.insert(args, path.basename(headerfile))
-            target:data_add("wdk.cleanfiles", headerfile)
         else
             headerfile = path.join(outputdir, path.basename(sourcefile) .. ".h")
         end

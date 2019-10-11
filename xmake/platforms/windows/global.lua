@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -25,7 +21,6 @@
 -- imports
 import("core.base.global")
 import("private.platform.check_arch")
-import("private.platform.check_cuda")
 import("private.platform.check_vstudio")
 
 -- clean temporary global configs
@@ -47,9 +42,6 @@ function main(platform, name)
 
     -- check vstudio
     check_vstudio(global)
-
-    -- check cuda
-    check_cuda(global)
 
     -- clean temporary global configs
     _clean_global()

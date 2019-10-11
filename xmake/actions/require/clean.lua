@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -57,20 +53,8 @@ function _clear_packagedirs(packagedir)
                 status = "invalid"
             end
             if status then
-                local confirm = option.get("yes")
-                if confirm == nil then
-
-                    -- show tips
-                    cprint("${bright color.warning}note: ${clear}remove this ${magenta}%s-%s${clear}/${yellow}%s${clear} (${red}%s${clear}) (pass -y to skip confirm)?", package_name, version, hash, status)
-                    cprint("please input: y (y/n)")
-
-                    -- get answer
-                    io.flush()
-                    local answer = io.read()
-                    if answer == 'y' or answer == '' then
-                        confirm = true
-                    end
-                end
+                local description = string.format("remove this ${magenta}%s-%s${clear}/${yellow}%s${clear} (${red}%s${clear})", package_name, version, hash, status)
+                local confirm = utils.confirm({default = true, description = description})
                 if confirm then
                     os.rm(hashdir)
                 end
@@ -89,17 +73,6 @@ end
 function main(package_names)
 
     -- trace
-    print("clearing caches ..")
-
-    -- clear cache directory
-    os.rm(package.cachedir())
-
-    -- clear require cache
-    local require_cache = cache("local.require")
-    require_cache:clear()
-    require_cache:flush()
-
-    -- trace
     print("clearing packages ..")
 
     -- clear all unused packages
@@ -115,5 +88,16 @@ function main(package_names)
             _clear_packagedirs(packagedir)
         end
     end
+
+    -- trace
+    print("clearing caches ..")
+
+    -- clear cache directory
+    os.rm(package.cachedir())
+
+    -- clear require cache
+    local require_cache = cache("local.require")
+    require_cache:clear()
+    require_cache:flush()
 end
 

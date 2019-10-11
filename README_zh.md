@@ -56,22 +56,14 @@ xmake的目标是开发者更加关注于项目本身开发，简化项目的描
 
 不仅如此，它还提供了许多更加高级的特性，例如插件扩展、脚本宏记录、批量打包、自动文档生成等等。。
 
+<img src="https://xmake.io/assets/img/index/package_manage.png" width="650px" />
+
 如果你想要了解更多，请参考：
 
 * [在线文档](https://xmake.io/#/zh/)
 * [项目主页](https://xmake.io/cn)
 * [Github](https://github.com/xmake-io/xmake)
 * [Gitee](https://gitee.com/tboox/xmake)
-
-```
-                         _        
-    __  ___ __  __  __ _| | ______ 
-    \ \/ / |  \/  |/ _  | |/ / __ \
-     >  <  | \__/ | /_| |   <  ___/
-    /_/\_\_|_|  |_|\__ \|_|\_\____| 
-
-                         by ruki, tboox.org
-```
 
 ## 安装
 
@@ -95,11 +87,11 @@ Invoke-Expression (Invoke-Webrequest 'https://raw.githubusercontent.com/xmake-io
 
 ## 简单的工程描述
 
-<img src="https://xmake.io/assets/img/index/showcode1.png" width="40%" />
+<img src="https://xmake.io/assets/img/index/showcode1.png" width="340px" />
 
 ## 包依赖描述
 
-<img src="https://xmake.io/assets/img/index/add_require.png" width="70%" />
+<img src="https://xmake.io/assets/img/index/add_require.png" width="600px" />
 
 官方的xmake包管理仓库: [xmake-repo](https://github.com/xmake-io/xmake-repo)
 
@@ -134,11 +126,17 @@ $ xmake
 $ xmake f --menu
 ```
 
-<img src="https://xmake.io/assets/img/index/menuconf.png" width="80%" />
+<img src="https://xmake.io/assets/img/index/menuconf.png" width="650px" />
 
 ## 包依赖管理
 
-<img src="https://xmake.io/assets/img/index/package_manage.png" width="80%" />
+### 下载和编译
+
+<img src="https://xmake.io/assets/img/index/package_manage.png" width="650px" />
+
+### 架构和流程
+
+<img src="https://xmake.io/assets/img/index/package_arch.png" width="650px" />
 
 ## 支持平台
 
@@ -170,8 +168,17 @@ $ xmake f --menu
 * Qt应用程序
 * WDK驱动程序
 * WinSDK应用程序
+* MFC应用程序
 
 ## 内置插件
+
+#### 生成IDE工程文件插件（makefile, vs2002 - vs2019, ...）
+
+```bash
+$ xmake project -k vs2017 -m "debug,release"
+$ xmake project -k cmakelists
+$ xmake project -k compile_commands
+```
 
 #### 宏记录脚本和回放插件
 
@@ -193,12 +200,6 @@ $ xmake l -c "print('hello xmake!')"
 $ xmake l lib.detect.find_tool gcc
 ```
 
-#### 生成IDE工程文件插件（makefile, vs2002 - vs2017, ...）
-
-```bash
-$ xmake project -k vs2017 -m "debug,release"
-```
-
 #### 生成doxygen文档插件
 
 ```bash
@@ -213,15 +214,15 @@ $ xmake doxygen [srcdir]
 
 * [xmake-vscode](https://github.com/xmake-io/xmake-vscode)
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-vscode/master/res/problem.gif" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-vscode/master/res/problem.gif" width="650px" />
 
 * [xmake-sublime](https://github.com/xmake-io/xmake-sublime)
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-sublime/master/res/problem.gif" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-sublime/master/res/problem.gif" width="650px" />
 
 * [xmake-idea](https://github.com/xmake-io/xmake-idea)
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/problem.gif" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/problem.gif" width="650px" />
 
 * [xmake.vim](https://github.com/luzhlon/xmake.vim) (third-party, thanks [@luzhlon](https://github.com/luzhlon))
 
@@ -240,17 +241,26 @@ target("console")
     end
 ```
 
-下载和使用远程依赖包：
+下载和使用在[xmake-repo](https://github.com/xmake-io/xmake-repo)的依赖包：
 
 ```lua
 add_requires("libuv master", "ffmpeg", "zlib 1.20.*")
 add_requires("tbox >1.6.1", {optional = true, debug = true})
+target("test")
+    set_kind("shared")
+    add_files("src/*.c")
+    add_packages("libuv", "ffmpeg", "tbox", "zlib")
+```
+
+下载和使用第三方包管理器的依赖包：
+
+```lua
 add_requires("brew::pcre2/libpcre2-8", {alias = "pcre2"})
 add_requires("conan::OpenSSL/1.0.2n@conan/stable", {alias = "openssl"}) 
 target("test")
     set_kind("shared")
     add_files("src/*.c")
-    add_packages("libuv", "ffmpeg", "tbox", "zlib", "pcre2", "openssl")
+    add_packages("pcre2", "openssl")
 ```
 
 查找和使用本地已安装的包：
@@ -276,7 +286,7 @@ target("test")
 ## 演示视频
 
 <a href="https://asciinema.org/a/133693">
-<img src="https://asciinema.org/a/133693.png" width="60%" />
+<img src="https://asciinema.org/a/133693.png" width="650px" />
 </a>
 
 ## 联系方式
@@ -286,7 +296,7 @@ target("test")
 * 社区：[Reddit论坛](https://www.reddit.com/r/tboox/)
 * 聊天：[Telegram群组](https://t.me/tbooxorg), [Gitter聊天室](https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 * 源码：[Github](https://github.com/xmake-io/xmake), [Gitee](https://gitee.com/tboox/xmake)
-* QQ群：343118190
+* QQ群：343118190(满), 662147501
 * 微信公众号：tboox-os
  
 ## 感谢
@@ -296,6 +306,7 @@ target("test")
 
 * [TitanSnow](https://github.com/TitanSnow): 提供xmake [logo](https://github.com/TitanSnow/ts-xmake-logo) 和安装脚本
 * [uael](https://github.com/uael): 提供语义版本跨平台c库 [sv](https://github.com/uael/sv)
+* [OpportunityLiu](https://github.com/OpportunityLiu): 改进cuda构建, tests框架和ci
 
 ## 支持项目
 

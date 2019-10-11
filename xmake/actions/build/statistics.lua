@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -27,6 +23,8 @@ import("core.base.option")
 import("core.project.config")
 import("core.platform.platform")
 import("core.platform.environment")
+import("private.action.update.fetch_version")
+import("private.action.require.packagenv")
 
 -- statistics is enabled?
 function _is_enabled()
@@ -38,7 +36,7 @@ function _is_enabled()
     end
 
     -- is in ci(travis/appveyor/...)? need not post it
-    local ci = (os.getenv("CI") or ""):lower()
+    local ci = (os.getenv("CI") or os.getenv("GITHUB_ACTIONS") or ""):lower()
     if ci == "true" then
         os.setenv("XMAKE_STATS", "false")
         return false
@@ -74,7 +72,7 @@ function post()
 
     -- init argument list
     local argv = {"lua", path.join(os.scriptdir(), "statistics.lua")}
-    for _, name in ipairs({"root", "file", "project", "diagnosis", "verbose", "quiet", "yes"}) do
+    for _, name in ipairs({"root", "file", "project", "diagnosis", "verbose", "quiet", "yes", "confirm"}) do
         local value = option.get(name)
         if type(value) == "string" then
             table.insert(argv, "--" .. name .. "=" .. value)
@@ -87,9 +85,9 @@ function post()
     try
     {
         function ()
-            local proc = process.openv("xmake", argv, path.join(os.tmpdir(), projectname .. ".stats.log"))
+            local proc = process.openv("xmake", argv, {outpath = path.join(os.tmpdir(), projectname .. ".stats.log")})
             if proc ~= nil then
-                process.close(proc)
+                proc:close()
             end
         end
     }
@@ -112,25 +110,44 @@ function main()
     -- enter environment
     environment.enter("toolchains")
 
+    -- enter the environments of git
+    packagenv.enter("git")
+
     -- get the project directory name
     local projectname = path.basename(os.projectdir())
 
     -- clone the xmake-stats repo to update the traffic(git clones) info in github
     local outputdir = path.join(os.tmpdir(), "stats", os.date("%y%m%d"), projectname)
     if not os.isdir(outputdir) then
-        import("devel.git.clone")
-        clone("https://github.com/xmake-io/xmake-stats.git", {depth = 1, branch = "master", outputdir = outputdir})
-        print("post to traffic ok!")
+        try
+        {
+            function ()
+                import("devel.git.clone")
+                clone("https://github.com/xmake-io/xmake-stats.git", {depth = 1, branch = "master", outputdir = outputdir})
+                print("post to traffic ok!")
+            end
+        }
+    end
+
+    -- fetch the lastest version
+    local versionfile = path.join(os.tmpdir(), "lastest_version")
+    if not os.isfile(versionfile) then
+        local fetchinfo = try { function () return fetch_version() end }
+        if fetchinfo then
+            io.save(versionfile, fetchinfo)
+        end
     end
 
     -- download the xmake-stats releases to update the release stats info in github
     local releasefile = outputdir .. ".release"
     if not os.isfile(releasefile) then
         import("net.http.download")
-        local version = os.versioninfo().version
-        download(format("https://github.com/xmake-io/xmake-stats/releases/download/v%d.%d.%d/%s", version.major, version.minor, version.alter, os.host()), releasefile)
+        download(format("https://github.com/xmake-io/xmake-stats/releases/download/v%s/%s", xmake:version():shortstr(), os.host()), releasefile)
         print("post to releases ok!")
     end
+
+    -- leave the environments of git
+    packagenv.leave("git")
 
     -- leave environment
     environment.leave("toolchains")

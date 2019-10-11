@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -25,11 +21,14 @@
 -- imports
 import("core.base.option")
 import("core.project.config")
+import("detect.tools.find_cudagdb")
+import("detect.tools.find_cudamemcheck")
 import("detect.tools.find_gdb")
 import("detect.tools.find_lldb")
 import("detect.tools.find_windbg")
 import("detect.tools.find_x64dbg")
 import("detect.tools.find_ollydbg")
+import("detect.tools.find_devenv")
 import("detect.tools.find_vsjitdebugger")
 
 -- run gdb
@@ -37,6 +36,27 @@ function _run_gdb(program, argv)
 
     -- find gdb
     local gdb = find_gdb({program = config.get("debugger")})
+    if not gdb then
+        return false
+    end
+
+    -- patch arguments
+    argv = argv or {}
+    table.insert(argv, 1, program)
+    table.insert(argv, 1, "--args")
+
+    -- run it
+    os.execv(gdb, argv)
+
+    -- ok
+    return true
+end
+
+-- run cuda-gdb
+function _run_cudagdb(program, argv)
+
+    -- find cudagdb
+    local gdb = find_cudagdb({program = config.get("debugger")})
     if not gdb then
         return false
     end
@@ -62,7 +82,7 @@ function _run_lldb(program, argv)
         return false
     end
 
-    -- attempt to split name, .e.g xcrun -sdk macosx lldb 
+    -- attempt to split name, e.g. xcrun -sdk macosx lldb 
     local names = lldb:split("%s")
 
     -- patch arguments
@@ -94,6 +114,26 @@ function _run_windbg(program, argv)
 
     -- run it
     os.execv(windbg, argv)
+
+    -- ok
+    return true
+end
+
+-- run cuda-memcheck
+function _run_cudamemcheck(program, argv)
+
+    -- find cudamemcheck
+    local cudamemcheck = find_cudamemcheck({program = config.get("debugger")})
+    if not cudamemcheck then
+        return false
+    end
+
+    -- patch arguments
+    argv = argv or {}
+    table.insert(argv, 1, program)
+
+    -- run it
+    os.execv(cudamemcheck, argv)
 
     -- ok
     return true
@@ -159,6 +199,27 @@ function _run_vsjitdebugger(program, argv)
     return true
 end
 
+-- run devenv
+function _run_devenv(program, argv)
+
+    -- find devenv
+    local devenv = find_devenv({program = config.get("debugger")})
+    if not devenv then
+        return false
+    end
+
+    -- patch arguments
+    argv = argv or {}
+    table.insert(argv, 1, "/DebugExe")
+    table.insert(argv, 2, program)
+
+    -- run it
+    os.execv(devenv, argv)
+
+    -- ok
+    return true
+end
+
 -- run program with debugger
 --
 -- @param program   the program name
@@ -176,10 +237,12 @@ end
 function main(program, argv)
 
     -- init debuggers
-    local debuggers = 
+    local debuggers =
     {
-        {"lldb", _run_lldb}
-    ,   {"gdb",  _run_gdb}
+        {"lldb"        , _run_lldb}
+    ,   {"gdb"         , _run_gdb}
+    ,   {"cudagdb"     , _run_cudagdb}
+    ,   {"cudamemcheck", _run_cudamemcheck}
     }
 
     -- for windows target or on windows?
@@ -188,16 +251,28 @@ function main(program, argv)
         table.insert(debuggers, 1, {"ollydbg",          _run_ollydbg})
         table.insert(debuggers, 1, {"x64dbg",           _run_x64dbg})
         table.insert(debuggers, 1, {"vsjitdebugger",    _run_vsjitdebugger})
+        table.insert(debuggers, 1, {"devenv",           _run_devenv})
     end
 
     -- get debugger from the configure
     local debugger = config.get("debugger")
     if debugger then
+
+        -- try exactmatch first
         debugger = debugger:lower()
+        local debuggername = path.basename(debugger)
+        for _, _debugger in ipairs(debuggers) do
+            if debuggername:startswith(_debugger[1]) then
+                if _debugger[2](program, argv) then
+                    return
+                end
+            end
+        end
+
         for _, _debugger in ipairs(debuggers) do
             if debugger:find(_debugger[1]) then
                 if _debugger[2](program, argv) then
-                    return 
+                    return
                 end
             end
         end

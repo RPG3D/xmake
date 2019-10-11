@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -28,6 +24,8 @@ local sandbox_core_project = sandbox_core_project or {}
 -- load modules
 local table       = require("base/table")
 local deprecated  = require("base/deprecated")
+local utils       = require("base/utils")
+local baseoption  = require("base/option")
 local config      = require("project/config")
 local option      = require("project/option")
 local project     = require("project/project")
@@ -150,6 +148,41 @@ end
 -- get the project directory
 function sandbox_core_project.directory()
     return project.directory()
+end
+
+-- get the filelock of the whole project directory
+function sandbox_core_project.filelock()
+    local filelock = project.filelock()
+    if not filelock then
+        raise("cannot create the project lock!")
+    end
+    return filelock
+end
+
+-- lock the whole project 
+function sandbox_core_project.lock(opt)
+    if sandbox_core_project.trylock(opt) then
+        return true
+    elseif baseoption.get("diagnosis") then
+        utils.warning("the current project is being accessed by other processes, please waiting!") 
+    end
+    local ok, errors = sandbox_core_project.filelock():lock(opt)
+    if not ok then
+        raise(errors)
+    end
+end
+
+-- trylock the whole project 
+function sandbox_core_project.trylock(opt)
+    return sandbox_core_project.filelock():trylock(opt)
+end
+
+-- unlock the whole project 
+function sandbox_core_project.unlock()
+    local ok, errors = sandbox_core_project.filelock():unlock()
+    if not ok then
+        raise(errors)
+    end
 end
 
 -- get the project mtimes

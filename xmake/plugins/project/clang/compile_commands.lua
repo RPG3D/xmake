@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -59,19 +55,10 @@ function _make_object(jsonfile, target, sourcefile, objectfile)
     _g.firstline = false
 end
  
--- make each objects
-function _make_each_objects(jsonfile, target, sourcekind, sourcebatch)
+-- make objects
+function _make_objects(jsonfile, target, sourcekind, sourcebatch)
     for index, objectfile in ipairs(sourcebatch.objectfiles) do
         _make_object(jsonfile, target, sourcebatch.sourcefiles[index], objectfile)
-    end
-end
- 
--- make single object
-function _make_single_object(jsonfile, target, sourcekind, sourcebatch)
-
-    -- not supported now, ignore it directly
-    for _, sourcefile in ipairs(table.wrap(sourcebatch.sourcefiles)) do
-        cprint("${bright color.warning}warning: ${clear}ignore[%s]: %s", target:name(), sourcefile)
     end
 end
 
@@ -84,13 +71,10 @@ function _make_target(jsonfile, target)
     target:set("pcxxheader", nil)
 
     -- build source batches
-    for sourcekind, sourcebatch in pairs(target:sourcebatches()) do
-        if not sourcebatch.rulename then
-            if type(sourcebatch.objectfiles) == "string" then
-                _make_single_object(jsonfile, target, sourcekind, sourcebatch)
-            else
-                _make_each_objects(jsonfile, target, sourcekind, sourcebatch)
-            end
+    for _, sourcebatch in pairs(target:sourcebatches()) do
+        local sourcekind = sourcebatch.sourcekind
+        if sourcekind then
+            _make_objects(jsonfile, target, sourcekind, sourcebatch)
         end
     end
 end

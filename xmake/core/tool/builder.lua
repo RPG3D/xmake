@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -121,61 +117,59 @@ function builder:_inherit_links_from_targetdeps(results, target, flagname)
     -- for all target deps
     local orderdeps = target:orderdeps()
     local total = #orderdeps
+    local deplinks = {}
     for idx, _ in ipairs(orderdeps) do
 
         -- reverse deps order for links
         local dep = orderdeps[total + 1 - idx]
 
-        -- is static or shared target library? link it
+        -- the dependent target is static or shared library? inherit it's links
         local depkind      = dep:targetkind()
         local targetkind   = target:targetkind()
         local depinherit   = target:extraconf("deps", dep:name(), "inherit")
         if (depkind == "static" or depkind == "shared" or depkind == "object") and (depinherit == nil or depinherit) then
-            if (flagname == "links" or flagname == "syslinks") and (targetkind == "binary" or targetkind == "shared") then
+            if targetkind == "binary" or targetkind == "shared" then
+                if flagname == "links" or flagname == "syslinks" then
 
-                -- add dependent link
-                if depkind ~= "object" then
-                    table.insert(results, dep:basename())
-                end
-
-                -- inherit links from the depdent target
-                self:_add_values_from_target(results, dep, flagname)
-
-            elseif flagname == "linkdirs" and (targetkind == "binary" or targetkind == "shared") then
-
-                -- add dependent linkdirs
-                if depkind ~= "object" then
-                    table.insert(results, path.directory(dep:targetfile()))
-                end
-
-                -- inherit linkdirs from the depdent target
-                self:_add_values_from_target(results, dep, flagname)
-
-            elseif flagname == "rpathdirs" and (targetkind == "binary" or targetkind == "shared") then
-
-                -- add dependent rpathdirs 
-                if depkind ~= "object" then
-                    local rpathdir = "@loader_path"
-                    local subdir = path.relative(path.directory(dep:targetfile()), path.directory(target:targetfile()))
-                    if subdir and subdir ~= '.' then
-                        rpathdir = path.join(rpathdir, subdir)
+                    -- add dependent link
+                    if depkind ~= "object" and flagname == "links" then
+                        table.insert(results, dep:basename())
                     end
-                    table.insert(results, rpathdir)
+
+                    -- inherit links from the depdent target
+                    self:_add_values_from_target(deplinks, dep, flagname)
+
+                elseif flagname == "linkdirs" then
+
+                    -- add dependent linkdirs
+                    if depkind ~= "object" then
+                        table.insert(results, path.directory(dep:targetfile()))
+                    end
+
+                    -- inherit linkdirs from the depdent target
+                    self:_add_values_from_target(results, dep, flagname)
+
+                elseif flagname == "rpathdirs" then
+
+                    -- add dependent rpathdirs 
+                    if depkind ~= "object" then
+                        local rpathdir = "@loader_path"
+                        local subdir = path.relative(path.directory(dep:targetfile()), path.directory(target:targetfile()))
+                        if subdir and subdir ~= '.' then
+                            rpathdir = path.join(rpathdir, subdir)
+                        end
+                        table.insert(results, rpathdir)
+                    end
                 end
 
+            -- TODO deprecated
             elseif flagname == "includedirs" then
 
-                -- TODO add dependent headerdir (deprecated)
+                -- add dependent headerdir
                 if dep:get("headers") and os.isdir(dep:headerdir()) then
                     table.insert(results, dep:headerdir())
                 end
 
-                -- add dependent header directories
-                local headerdirs = dep:get("headerdirs")
-                if headerdirs then
-                    table.join2(results, headerdirs)
-                end
-                
                 -- add dependent configheader directory
                 local configheader = dep:configheader()
                 if configheader and os.isfile(configheader) then
@@ -183,6 +177,11 @@ function builder:_inherit_links_from_targetdeps(results, target, flagname)
                 end
             end
         end
+    end
+
+    -- @note we need ensure add option and package links after all dependent targets
+    if #deplinks > 0 then
+        table.join2(results, deplinks)
     end
 end
 
@@ -235,9 +234,9 @@ end
 
 -- add values from target options
 function builder:_add_values_from_targetopts(values, target, name)
-	for _, opt in ipairs(target:orderopts()) do
-		table.join2(values, table.wrap(opt:get(name)))
-	end
+    for _, opt in ipairs(target:orderopts()) do
+        table.join2(values, table.wrap(opt:get(name)))
+    end
 end
 
 -- add values from target packages
@@ -284,7 +283,7 @@ end
 -- add flags from the option 
 function builder:_add_flags_from_option(flags, opt)
     for _, flagkind in ipairs(self:_flagkinds()) do
-        self:_add_flags_from_flagkind(targetflags, opt, flagkind)
+        self:_add_flags_from_flagkind(flags, opt, flagkind)
     end
 end
 
@@ -308,7 +307,7 @@ function builder:_add_flags_from_target(flags, target)
     local cache = self._TARGETFLAGS
 
     -- get flags from cache first
-    local key = tostring(target)
+    local key = target:cachekey()
     local targetflags = cache[key]
     if not targetflags then
     
@@ -382,7 +381,13 @@ function builder:_add_flags_from_language(flags, target, getters)
     --
     local getters = getters or
     {
-        config      =   config.get
+        config      =   function (name)
+                            local values = config.get(name)
+                            if values and name:endswith("dirs") then
+                                values = path.splitenv(values)
+                            end
+                            return values
+                        end
     ,   platform    =   platform.get
     ,   target      =   function (name) 
 
@@ -408,7 +413,7 @@ function builder:_add_flags_from_language(flags, target, getters)
                             -- is target? get flagvalues of the attached options and packages
                             local results = {}
                             if target:type() == "target" then
-								self:_add_values_from_targetopts(results, target, name)
+                                self:_add_values_from_targetopts(results, target, name)
                                 self:_add_values_from_targetpkgs(results, target, name)
 
                             -- is option? get flagvalues of option with given flagname
@@ -435,7 +440,7 @@ function builder:_add_flags_from_language(flags, target, getters)
             --
             -- ignore "nf_" and "_if_ok"
             --
-            -- .e.g
+            -- e.g.
             --
             -- defines => define
             -- defines_if_ok => define
@@ -470,7 +475,7 @@ function builder:_preprocess_flags(flags)
     -- remove repeat
     flags = table.unique(flags)
 
-    -- split flag group, .e.g "-I /xxx" => {"-I", "/xxx"}
+    -- split flag group, e.g. "-I /xxx" => {"-I", "/xxx"}
     local results = {}
     for _, flag in ipairs(flags) do
         flag = flag:trim()
@@ -519,16 +524,6 @@ function builder:format(targetkind)
     local formats = self:get("formats")
     if formats then
         return formats[targetkind]
-    end
-end
-
--- get buildmode of the tool
-function builder:buildmode(name)
-
-    -- get it
-    local buildmodes = self:get("buildmodes")
-    if buildmodes then
-        return buildmodes[name]
     end
 end
 

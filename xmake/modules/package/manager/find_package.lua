@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -76,13 +72,6 @@ function _find_package_with_builtin_rule(package_name, opt)
             break
         end
     end
-
-    -- check result?
-    if result and not result.includedirs then
-        result = nil
-    end
-
-    -- ok?
     return result
 end
 
@@ -163,7 +152,7 @@ function main(name, opt)
     opt.mode = opt.mode or config.mode() or "release"
 
     -- get package manager name
-    local manager_name, package_name = unpack(name:split("::", true))
+    local manager_name, package_name = unpack(name:split("::", {plain = true, strict = true}))
     if package_name == nil then
         package_name = manager_name
         manager_name = nil
@@ -173,7 +162,7 @@ function main(name, opt)
 
     -- get package name and require version
     local require_version = nil
-    package_name, require_version = unpack(package_name:trim():split("%s+"))
+    package_name, require_version = unpack(package_name:trim():split("%s"))
     opt.version = require_version or opt.version
 
     -- find package

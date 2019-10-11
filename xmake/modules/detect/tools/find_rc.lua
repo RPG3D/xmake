@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -29,7 +25,7 @@ import("lib.detect.find_programver")
 
 -- find rc 
 --
--- @param opt   the argument options, .e.g {version = true}
+-- @param opt   the argument options, e.g. {version = true}
 --
 -- @return      program, version
 --
@@ -40,6 +36,11 @@ import("lib.detect.find_programver")
 -- @endcode
 --
 function main(opt)
+
+    -- not on windows?
+    if not is_host("windows") then
+        return 
+    end
 
     -- init options
     opt         = opt or {}
@@ -54,7 +55,7 @@ function main(opt)
     --
     -- patch sdk bin directory to path environment
     --
-    -- .e.g C:\Program Files (x86)\Windows Kits\10\bin\10.0.17134.0\x64
+    -- e.g. C:\Program Files (x86)\Windows Kits\10\bin\10.0.17134.0\x64
     --
     local arch = opt.arch or config.arch() or os.arch()
     local vcvarsall = config.get("__vcvarsall")

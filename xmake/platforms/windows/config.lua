@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -28,7 +24,6 @@ import("core.base.singleton")
 import("core.platform.environment")
 import("private.platform.toolchain")
 import("private.platform.check_arch")
-import("private.platform.check_cuda")
 import("private.platform.check_vstudio")
 import("private.platform.check_toolchain")
 
@@ -60,12 +55,11 @@ function _toolchains()
     local rc_ar      = toolchain("the rust static library archiver")
     local cu         = toolchain("the cuda compiler")
     local cu_ld      = toolchain("the cuda linker")
-    local cu_sh      = toolchain("the cuda shared library linker")
     local toolchains = {cc = cc, cxx = cxx, mrc = mrc, as = as, ld = ld, sh = sh, ar = ar, ex = ex, 
                         gc = gc, ["gc-ld"] = gc_ld, ["gc-ar"] = gc_ar,
                         dc = dc, ["dc-ld"] = dc_ld, ["dc-sh"] = dc_sh, ["dc-ar"] = dc_ar,
                         rc = rc, ["rc-ld"] = rc_ld, ["rc-sh"] = rc_sh, ["rc-ar"] = rc_ar,
-                        cu = cu, ["cu-ld"] = cu_ld, ["cu-sh"] = cu_sh}
+                        cu = cu, ["cu-ld"] = cu_ld}
 
     -- init the c compiler
     cc:add("cl.exe")
@@ -113,9 +107,8 @@ function _toolchains()
     rc_ar:add("$(env RC)", "rustc")
 
     -- init the cuda compiler and linker
-    cu:add("nvcc")
+    cu:add("nvcc", "clang")
     cu_ld:add("nvcc")
-    cu_sh:add("nvcc")
 
     return toolchains
 end
@@ -138,9 +131,6 @@ function main(platform, name)
 
         -- check vstudio
         check_vstudio(config)
-
-        -- check cuda
-        check_cuda(config)
     end
 end
 

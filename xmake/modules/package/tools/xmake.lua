@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -32,7 +28,7 @@ function _get_configs(package, configs)
     local cxflags  = package:config("cxflags")
     local cxxflags = package:config("cxxflags")
     local asflags  = package:config("asflags")
-    if package:plat() == "windows" then
+    if package:is_plat("windows") then
         local vs_runtime = package:config("vs_runtime")
         if vs_runtime then
             cxflags = (cxflags or "") .. " /" .. vs_runtime .. (package:debug() and "d" or "")
@@ -40,26 +36,40 @@ function _get_configs(package, configs)
     end
     table.insert(configs, "--mode=" .. (package:debug() and "debug" or "release"))
     if cflags then
-        table.insert(configs, '--cflags="' .. cflags .. '"')
+        table.insert(configs, "--cflags=" .. cflags)
     end
     if cxflags then
-        table.insert(configs, '--cxflags="' .. cxflags .. '"')
+        table.insert(configs, "--cxflags=" .. cxflags)
     end
     if cxxflags then
-        table.insert(configs, '--cxxflags="' .. cxxflags .. '"')
+        table.insert(configs, "--cxxflags=" .. cxxflags)
     end
     if asflags then
-        table.insert(configs, '--asflags="' .. asflags .. '"')
+        table.insert(configs, "--asflags=" .. asflags)
     end
     return configs
+end
+
+-- init arguments and inherit some global options from the parent xmake
+function _init_argv(...)
+    local argv = {...}
+    for _, name in ipairs({"diagnosis", "verbose", "quiet", "yes", "confirm", "root"}) do
+        local value = option.get(name) 
+        if type(value) == "boolean" then
+            table.insert(argv, "--" .. name)
+        elseif value ~= nil then
+            table.insert(argv, "--" .. name .. "=" .. value)
+        end
+    end
+    return argv
 end
 
 -- install package
 function install(package, configs)
 
     -- inherit builtin configs
-    local argv = {"f", "-y"}
-    local names   = {"plat", "arch", "ndk", "ndk_sdkver", "vs", "sdk", "bin", "cross", "ld", "sh", "ar", "cc", "cxx", "mm", "mxx"}
+    local argv = _init_argv("f", "-y", "-c")
+    local names   = {"plat", "arch", "ndk", "ndk_sdkver", "vs", "mingw", "sdk", "bin", "cross", "ld", "sh", "ar", "cc", "cxx", "mm", "mxx"}
     for _, name in ipairs(names) do
         local value = get_config(name)
         if value ~= nil then
@@ -78,31 +88,13 @@ function install(package, configs)
             table.insert(argv, "--" .. name .. "=" .. value)
         end
     end
-    if option.get("verbose") then
-        table.insert(argv, "-v")
-    end
-    if option.get("diagnosis") then
-        table.insert(argv, "--diagnosis")
-    end
     os.vrunv("xmake", argv)
 
     -- do build
-    argv = {}
-    if option.get("verbose") then
-        table.insert(argv, "-v")
-    end
-    if option.get("diagnosis") then
-        table.insert(argv, "--diagnosis")
-    end
+    argv = _init_argv()
     os.vrunv("xmake", argv)
 
     -- do install
-    argv = {"install", "-y", "-o", package:installdir()}
-    if option.get("verbose") then
-        table.insert(argv, "-v")
-    end
-    if option.get("diagnosis") then
-        table.insert(argv, "--diagnosis")
-    end
+    argv = _init_argv("install", "-y", "-o", package:installdir())
     os.vrunv("xmake", argv)
 end

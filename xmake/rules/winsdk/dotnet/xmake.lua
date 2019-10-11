@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -51,6 +47,21 @@ rule("win.sdk.dotnet")
 
         -- get dotnet
         local dotnet = target:data("win.sdk.dotnet")
+        if not dotnet then
+
+            -- imports
+            import("core.project.config")
+            import("detect.sdks.find_dotnet")
+
+            -- find dotnet
+            dotnet = assert(find_dotnet(nil, {verbose = true}), "dotnet not found!")
+
+            -- add link directory
+            target:add("linkdirs", path.join(dotnet.libdir, "um", config.arch()))
+
+            -- save dotnet
+            target:data_set("win.sdk.dotnet", dotnet)
+        end
 
         -- get file config
         local fileconfig = target:fileconfig(sourcefile) or {}

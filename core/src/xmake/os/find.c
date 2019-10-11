@@ -1,12 +1,8 @@
 /*!A cross-platform build utility based on Lua
  *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -94,7 +90,7 @@ static tb_bool_t xm_os_find_walk(tb_char_t const* path, tb_file_info_t const* in
                 tb_assert_and_check_return_val(rootdir && rootlen, tb_false);
 
                 // check
-                tb_assert(!tb_strcmp(path, rootdir));
+                tb_assert(!tb_strncmp(path, rootdir, rootlen));
                 tb_assert(rootlen + 1 <= tb_strlen(path));
 
                 // skip the rootdir if not "."

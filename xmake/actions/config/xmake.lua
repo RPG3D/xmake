@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -101,14 +97,14 @@ task("config")
 
                 ,   {category = "Cross Complation Configuration"}
                 ,   {nil, "cross",      "kv", nil,          "The Cross Toolchains Prefix"   
-                                                          , ".e.g"
+                                                          , "e.g."
                                                           , "    - i386-mingw32-"
                                                           , "    - arm-linux-androideabi-"                                  }
                 ,   {nil, "bin",        "kv", nil,          "The Cross Toolchains Bin Directory" 
-                                                          , ".e.g"
+                                                          , "e.g."
                                                           , "    - sdk/bin (/arm-linux-gcc ..)"                             }
                 ,   {nil, "sdk",        "kv", nil,          "The Cross SDK Directory" 
-                                                          , ".e.g"
+                                                          , "e.g."
                                                           , "    - sdk/bin"
                                                           , "    - sdk/lib"
                                                           , "    - sdk/include"                                             }

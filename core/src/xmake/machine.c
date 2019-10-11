@@ -1,12 +1,8 @@
 /*!A cross-platform build utility based on Lua
  *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -35,6 +31,8 @@
 #include "xmake.h"
 #if defined(TB_CONFIG_OS_WINDOWS)
 #   include <windows.h>
+#   include <io.h>
+#   include <fcntl.h>
 #elif defined(TB_CONFIG_OS_MACOSX)
 #   include <mach-o/dyld.h>
 #elif defined(TB_CONFIG_OS_LINUX)
@@ -79,20 +77,37 @@ tb_int_t xm_os_rename(lua_State* lua);
 tb_int_t xm_os_exists(lua_State* lua);
 tb_int_t xm_os_setenv(lua_State* lua);
 tb_int_t xm_os_getenv(lua_State* lua);
+tb_int_t xm_os_getenvs(lua_State* lua);
+tb_int_t xm_os_cpuinfo(lua_State* lua);
 tb_int_t xm_os_readlink(lua_State* lua);
 tb_int_t xm_os_filesize(lua_State* lua);
 tb_int_t xm_os_emptydir(lua_State* lua);
 tb_int_t xm_os_strerror(lua_State* lua);
 tb_int_t xm_os_getwinsize(lua_State* lua);
-tb_int_t xm_os_versioninfo(lua_State* lua);
 #ifndef TB_CONFIG_OS_WINDOWS
 tb_int_t xm_os_uid(lua_State* lua);
 tb_int_t xm_os_gid(lua_State* lua);
 tb_int_t xm_os_getown(lua_State* lua);
 #endif
 
-// the io functions
-tb_int_t xm_io_isatty(lua_State* lua);
+// the io/file functions
+tb_int_t xm_io_stdfile(lua_State* lua);
+tb_int_t xm_io_file_open(lua_State* lua);
+tb_int_t xm_io_file_read(lua_State* lua);
+tb_int_t xm_io_file_seek(lua_State* lua);
+tb_int_t xm_io_file_size(lua_State* lua);
+tb_int_t xm_io_file_rawfd(lua_State* lua);
+tb_int_t xm_io_file_write(lua_State* lua);
+tb_int_t xm_io_file_flush(lua_State* lua);
+tb_int_t xm_io_file_close(lua_State* lua);
+tb_int_t xm_io_file_isatty(lua_State* lua);
+
+// the io/filelock functions
+tb_int_t xm_io_filelock_open(lua_State* lua);
+tb_int_t xm_io_filelock_lock(lua_State* lua);
+tb_int_t xm_io_filelock_unlock(lua_State* lua);
+tb_int_t xm_io_filelock_trylock(lua_State* lua);
+tb_int_t xm_io_filelock_close(lua_State* lua);
 
 // the path functions
 tb_int_t xm_path_relative(lua_State* lua);
@@ -106,11 +121,17 @@ tb_int_t xm_hash_sha256(lua_State* lua);
 
 // the windows functions
 #ifdef TB_CONFIG_OS_WINDOWS
+tb_int_t xm_winos_cp_info(lua_State* lua);
+tb_int_t xm_winos_console_cp(lua_State* lua);
+tb_int_t xm_winos_console_output_cp(lua_State* lua);
+tb_int_t xm_winos_ansi_cp(lua_State* lua);
+tb_int_t xm_winos_oem_cp(lua_State* lua);
 tb_int_t xm_winos_logical_drives(lua_State* lua);
 tb_int_t xm_winos_registry_query(lua_State* lua);
 #endif
 
 // the string functions
+tb_int_t xm_string_trim(lua_State* lua);
 tb_int_t xm_string_convert(lua_State* lua);
 tb_int_t xm_string_endswith(lua_State* lua);
 tb_int_t xm_string_startswith(lua_State* lua);
@@ -118,8 +139,8 @@ tb_int_t xm_string_startswith(lua_State* lua);
 // the process functions
 tb_int_t xm_process_open(lua_State* lua);
 tb_int_t xm_process_openv(lua_State* lua);
-tb_int_t xm_process_wait(lua_State* lua);
 tb_int_t xm_process_waitlist(lua_State* lua);
+tb_int_t xm_process_wait(lua_State* lua);
 tb_int_t xm_process_close(lua_State* lua);
 
 // the sandbox functions
@@ -172,12 +193,13 @@ static luaL_Reg const g_os_functions[] =
 ,   { "exists",         xm_os_exists    }
 ,   { "setenv",         xm_os_setenv    }
 ,   { "getenv",         xm_os_getenv    }
+,   { "getenvs",        xm_os_getenvs   }
+,   { "cpuinfo",        xm_os_cpuinfo   }
 ,   { "readlink",       xm_os_readlink  }
 ,   { "emptydir",       xm_os_emptydir  }
 ,   { "strerror",       xm_os_strerror  }
 ,   { "filesize",       xm_os_filesize  }
 ,   { "getwinsize",     xm_os_getwinsize}
-,   { "versioninfo",    xm_os_versioninfo}
 #ifndef TB_CONFIG_OS_WINDOWS
 ,   { "uid",            xm_os_uid       }
 ,   { "gid",            xm_os_gid       }
@@ -190,17 +212,36 @@ static luaL_Reg const g_os_functions[] =
 #ifdef TB_CONFIG_OS_WINDOWS
 static luaL_Reg const g_winos_functions[] = 
 {
-    { "logical_drives", xm_winos_logical_drives }
-,   { "registry_query", xm_winos_registry_query }
-,   { tb_null,          tb_null                 }
+    { "cp_info",             xm_winos_cp_info           }
+,   { "console_cp",          xm_winos_console_cp        }
+,   { "console_output_cp",   xm_winos_console_output_cp }
+,   { "oem_cp",              xm_winos_oem_cp            }
+,   { "ansi_cp",             xm_winos_ansi_cp           }
+,   { "logical_drives",      xm_winos_logical_drives    }
+,   { "registry_query",      xm_winos_registry_query    }
+,   { tb_null,               tb_null                    }
 };
 #endif
 
 // the io functions
 static luaL_Reg const g_io_functions[] = 
 {
-    { "isatty",         xm_io_isatty    }
-,   { tb_null,          tb_null         }
+    { "stdfile",            xm_io_stdfile          }
+,   { "file_open",          xm_io_file_open        }
+,   { "file_read",          xm_io_file_read        }
+,   { "file_seek",          xm_io_file_seek        }
+,   { "file_size",          xm_io_file_size        }
+,   { "file_write",         xm_io_file_write       }
+,   { "file_flush",         xm_io_file_flush       }
+,   { "file_isatty",        xm_io_file_isatty      }
+,   { "file_close",         xm_io_file_close       }
+,   { "file_rawfd",         xm_io_file_rawfd       }
+,   { "filelock_open",      xm_io_filelock_open    }
+,   { "filelock_lock",      xm_io_filelock_lock    }
+,   { "filelock_trylock",   xm_io_filelock_trylock }
+,   { "filelock_unlock",    xm_io_filelock_unlock  }
+,   { "filelock_close",     xm_io_filelock_close   }
+,   { tb_null,              tb_null                }
 };
 
 // the path functions
@@ -224,7 +265,8 @@ static luaL_Reg const g_hash_functions[] =
 // the string functions
 static luaL_Reg const g_string_functions[] = 
 {
-    { "convert",        xm_string_convert       }
+    { "trim",           xm_string_trim          }
+,   { "convert",        xm_string_convert       }
 ,   { "endswith",       xm_string_endswith      }
 ,   { "startswith",     xm_string_startswith    }
 ,   { tb_null,          tb_null                 }
@@ -235,8 +277,8 @@ static luaL_Reg const g_process_functions[] =
 {
     { "open",           xm_process_open     }
 ,   { "openv",          xm_process_openv    }
-,   { "wait",           xm_process_wait     }
 ,   { "waitlist",       xm_process_waitlist }
+,   { "wait",           xm_process_wait     }
 ,   { "close",          xm_process_close    }
 ,   { tb_null,          tb_null             }
 };
@@ -278,15 +320,25 @@ static tb_bool_t xm_machine_save_arguments(xm_machine_t* machine, tb_int_t argc,
     // check
     tb_assert_and_check_return_val(machine && machine->lua && argc >= 1 && argv, tb_false);
 
+#ifdef TB_CONFIG_OS_WINDOWS
+    tb_wchar_t **argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
+#endif
+
     // put a new table into the stack
-    lua_newtable(machine->lua);
+    lua_createtable(machine->lua, argc, 0);
 
     // save all arguments to the new table
     tb_int_t i = 0;
     for (i = 1; i < argc; i++)
     {
+#ifdef TB_CONFIG_OS_WINDOWS
+        tb_char_t argvbuf[4096] = {0};
+        tb_wcstombs(argvbuf, argvw[i], tb_arrayn(argvbuf));
         // table_new[table.getn(table_new) + 1] = argv[i]
+        lua_pushstring(machine->lua, argvbuf);
+#else
         lua_pushstring(machine->lua, argv[i]);
+#endif
         lua_rawseti(machine->lua, -2, (int)lua_objlen(machine->lua, -2) + 1);
     }
 
@@ -307,10 +359,13 @@ static tb_size_t xm_machine_get_program_file(xm_machine_t* machine, tb_char_t* p
     {
 #if defined(TB_CONFIG_OS_WINDOWS)
         // get the executale file path as program directory
-        tb_size_t size = (tb_size_t)GetModuleFileName(tb_null, path, (DWORD)maxn);
-        tb_assert_and_check_break(size < maxn);
-
+        tb_wchar_t buf[TB_PATH_MAXN] = {0};
+        tb_size_t  size              = (tb_size_t)GetModuleFileNameW(tb_null, buf, (DWORD)TB_PATH_MAXN);
+        tb_assert_and_check_break(size < TB_PATH_MAXN);
         // end
+        buf[size]  = L'\0';
+        size       = tb_wcstombs(path, buf, maxn);
+        tb_assert_and_check_break(size < maxn);
         path[size] = '\0';
 
         // ok
@@ -456,45 +511,45 @@ static tb_void_t xm_machine_init_arch(xm_machine_t* machine)
 
 #if defined(TB_CONFIG_OS_WINDOWS)
 
-        // the GetNativeSystemInfo function type
-        typedef void (WINAPI *GetNativeSystemInfo_t)(LPSYSTEM_INFO);
+    // the GetNativeSystemInfo function type
+    typedef void (WINAPI *GetNativeSystemInfo_t)(LPSYSTEM_INFO);
 
-        // get system info
-        SYSTEM_INFO systeminfo = {0};
-        GetNativeSystemInfo_t pGetNativeSystemInfo = tb_null;
-        tb_dynamic_ref_t kernel32 = tb_dynamic_init("kernel32.dll");
-        if (kernel32) pGetNativeSystemInfo = (GetNativeSystemInfo_t)tb_dynamic_func(kernel32, "GetNativeSystemInfo");
-        if (pGetNativeSystemInfo) pGetNativeSystemInfo(&systeminfo);
-        else GetSystemInfo(&systeminfo);
+    // get system info
+    SYSTEM_INFO systeminfo = {0};
+    GetNativeSystemInfo_t pGetNativeSystemInfo = tb_null;
+    tb_dynamic_ref_t kernel32 = tb_dynamic_init("kernel32.dll");
+    if (kernel32) pGetNativeSystemInfo = (GetNativeSystemInfo_t)tb_dynamic_func(kernel32, "GetNativeSystemInfo");
+    if (pGetNativeSystemInfo) pGetNativeSystemInfo(&systeminfo);
+    else GetSystemInfo(&systeminfo);
 
-        // init architecture
-        switch (systeminfo.wProcessorArchitecture)
-        {
-        case PROCESSOR_ARCHITECTURE_AMD64:
-            lua_pushstring(machine->lua, "x64");
-            break;
-        case PROCESSOR_ARCHITECTURE_ARM:
-            lua_pushstring(machine->lua, "arm");
-            break;
-        case PROCESSOR_ARCHITECTURE_INTEL:
-            lua_pushstring(machine->lua, "x86");
-            break;
-        default:
+    // init architecture
+    switch (systeminfo.wProcessorArchitecture)
+    {
+    case PROCESSOR_ARCHITECTURE_AMD64:
+        lua_pushstring(machine->lua, "x64");
+        break;
+    case PROCESSOR_ARCHITECTURE_ARM:
+        lua_pushstring(machine->lua, "arm");
+        break;
+    case PROCESSOR_ARCHITECTURE_INTEL:
+        lua_pushstring(machine->lua, "x86");
+        break;
+    default:
 #   ifdef TB_ARCH_x64
-            lua_pushstring(machine->lua, "x64");
+        lua_pushstring(machine->lua, "x64");
 #   else
-            lua_pushstring(machine->lua, "x86");
+        lua_pushstring(machine->lua, "x86");
 #   endif
-            break;
-        }
+        break;
+    }
 #elif defined(TB_ARCH_x64)
-        lua_pushstring(machine->lua, "x86_64");
+    lua_pushstring(machine->lua, "x86_64");
 #elif defined(TB_ARCH_x86)
-        lua_pushstring(machine->lua, "i386");
+    lua_pushstring(machine->lua, "i386");
 #else
-        lua_pushstring(machine->lua, TB_ARCH_STRING);
+    lua_pushstring(machine->lua, TB_ARCH_STRING);
 #endif
-        lua_setglobal(machine->lua, "_ARCH");
+    lua_setglobal(machine->lua, "_ARCH");
 }
 
 /* //////////////////////////////////////////////////////////////////////////////////////
@@ -585,7 +640,7 @@ xm_machine_ref_t xm_machine_init()
 
         // init version string
         tb_char_t version_cstr[256] = {0};
-        tb_snprintf(version_cstr, sizeof(version_cstr), "%u.%u.%u.%llu", version->major, version->minor, version->alter, version->build);
+        tb_snprintf(version_cstr, sizeof(version_cstr), "%u.%u.%u+%llu", version->major, version->minor, version->alter, version->build);
         lua_pushstring(machine->lua, version_cstr);
         lua_setglobal(machine->lua, "_VERSION");
 
@@ -646,6 +701,10 @@ tb_int_t xm_machine_main(xm_machine_ref_t self, tb_int_t argc, tb_char_t** argv)
     // check
     xm_machine_t* machine = (xm_machine_t*)self;
     tb_assert_and_check_return_val(machine && machine->lua, -1);
+
+#ifdef TB_CONFIG_OS_WINDOWS
+    if (_isatty(_fileno(stdin))) _setmode(_fileno(stdin), _O_U16TEXT);
+#endif
 
     // save main arguments to the global variable: _ARGV
     if (!xm_machine_save_arguments(machine, argc, argv)) return -1;

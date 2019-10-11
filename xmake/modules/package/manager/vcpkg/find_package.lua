@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -32,7 +28,7 @@ import("core.project.target")
 -- find package from the brew package manager
 --
 -- @param name  the package name, e.g. zlib, pcre/libpcre16
--- @param opt   the options, .e.g {verbose = true, version = "1.12.x")
+-- @param opt   the options, e.g. {verbose = true, version = "1.12.x")
 --
 function main(name, opt)
 
@@ -48,9 +44,9 @@ function main(name, opt)
     local mode = opt.mode 
     if plat == "macosx" then
         plat = "osx"
-        if arch == "x86_64" then
-            arch = "x64"
-        end
+    end
+    if arch == "x86_64" then
+        arch = "x64"
     end
 
     -- get the vcpkg installed directory
@@ -59,7 +55,7 @@ function main(name, opt)
     -- get the vcpkg info directory
     local infodir = path.join(installdir, "vcpkg", "info")
 
-    -- find the package info file, .e.g zlib_1.2.11-3_x86-windows.list
+    -- find the package info file, e.g. zlib_1.2.11-3_x86-windows.list
     local infofile = find_file(format("%s_*_%s-%s.list", name, arch, plat), infodir)
 
     -- save includedirs, linkdirs and links
@@ -84,6 +80,15 @@ function main(name, opt)
                     result.linkdirs = result.linkdirs or {}
                     table.insert(result.linkdirs, path.join(installdir, path.directory(line)))
                     table.insert(result.links, target.linkname(path.filename(line)))
+                end
+            end
+
+            -- add shared library directory (/bin/) to linkdirs for running with PATH on windows
+            if plat == "windows" and line:endswith(".dll") then
+                if line:find(plat .. (mode == "debug" and "/debug" or "") .. "/bin/", 1, true) then
+                    result = result or {}
+                    result.linkdirs = result.linkdirs or {}
+                    table.insert(result.linkdirs, path.join(installdir, path.directory(line)))
                 end
             end
         end

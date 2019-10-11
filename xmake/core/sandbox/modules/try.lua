@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -90,7 +86,28 @@ function sandbox_try._traceback(errors)
     return results
 end
 
--- try 
+-- local ok = try 
+-- {
+--   function ()
+--      raise("errors")
+--      raise({errors = "xxx", xxx = "", yyy = ""})
+--      return true
+--   end,
+--   catch 
+--   {
+--      function (errors)
+--          print(errors)
+--          if errors then
+--              print(errors.xxx)
+--          end
+--      end
+--   },
+--   finally
+--   {
+--      function (ok, result_or_errors)
+--      end
+--   }
+-- }
 function sandbox_try.try(block)
 
     -- get the try function
@@ -101,23 +118,24 @@ function sandbox_try.try(block)
     local funcs = table.join(block[2] or {}, block[3] or {})
 
     -- try to call it
-    local ok, errors_or_r1, r2, r3, r4, r5, r6 = xpcall(try, sandbox_try._traceback)
+    local results = table.pack(utils.trycall(try, sandbox_try._traceback))
+    local ok = results[1]
     if not ok then
 
         -- run the catch function
         if funcs and funcs.catch then
-            funcs.catch(errors_or_r1)
+            funcs.catch(results[2])
         end
     end
 
     -- run the finally function
     if funcs and funcs.finally then
-        funcs.finally(ok, errors_or_r1, r2, r3, r4, r5, r6)
+        funcs.finally(ok, table.unpack(results, 2, results.n))
     end
 
     -- ok?
     if ok then
-        return errors_or_r1, r2, r3, r4, r5, r6
+        return table.unpack(results, 2, results.n)
     end
 end
 

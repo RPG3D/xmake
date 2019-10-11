@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -145,46 +141,49 @@ colors._keys24 =
 -- the escape string
 colors._escape = string.char(27) .. '[%sm'
 
--- support 8 colors?
+-- get colorterm setting
 --
 -- COLORTERM: color8, color256, truecolor, nocolor
 --
+function colors._colorterm()
+    local colorterm = colors._COLORTERM
+    if colorterm == nil then
+        colorterm = os.getenv("XMAKE_COLORTERM") or os.getenv("COLORTERM") or ""
+        colors._COLORTERM = colorterm
+    end
+    return colorterm
+end
+
+-- support 8 colors?
 function colors.color8()
 
-    -- get $COLORTERM
-    colors._COLORTERM = colors._COLORTERM or os.getenv("COLORTERM") or ""
-
     -- no color?
-    if colors._COLORTERM == "nocolor" then
+    local colorterm = colors._colorterm()
+    if colorterm == "nocolor" then
         return false
     end
 
     -- has 8 colors?
-    if colors._COLORTERM == "color8" or os.host() ~= "windows" then
+    if colorterm == "color8" or os.host() ~= "windows" then
         return true
     end
 
     -- this is supported if exists ANSICON envirnoment variable on windows
-    colors._ANSICON = colors._ANSICON or os.getenv("ANSICON")
-    return colors._ANSICON
+    colors._ANSICON = colors._ANSICON or os.getenv("ANSICON") or ""
+    return colors._ANSICON ~= ""
 end
 
 -- support 256 colors?
---
--- COLORTERM: color8, color256, truecolor, nocolor
---
 function colors.color256()
 
-    -- get $COLORTERM
-    colors._COLORTERM = colors._COLORTERM or os.getenv("COLORTERM") or ""
-
     -- no color?
-    if colors._COLORTERM == "nocolor" then
+    local colorterm = colors._colorterm()
+    if colorterm == "nocolor" then
         return false
     end
 
     -- has 256 colors?
-    return colors._COLORTERM == "color256" or os.host() ~= "windows"
+    return colorterm == "color256" or os.host() ~= "windows"
 end
 
 -- support 24bits true color
@@ -204,11 +203,19 @@ end
 --
 function colors.truecolor()
 
-    -- get $COLORTERM
-    colors._COLORTERM = colors._COLORTERM or os.getenv("COLORTERM") or ""
-
     -- support true color?
-    return colors._COLORTERM:find("truecolor", 1, true) or colors._COLORTERM:find("24bit", 1, true)
+    local colorterm = colors._colorterm()
+    return colorterm:find("truecolor", 1, true) or colorterm:find("24bit", 1, true)
+end
+
+-- support emoji?
+function colors.emoji()
+    local emoji = colors._EMOJI
+    if emoji == nil then
+        emoji = not os.getenv("XMAKE_COLORTERM_NOEMOJI")
+        colors._EMOJI = emoji
+    end
+    return emoji
 end
 
 -- make rainbow truecolor code by the index of characters
@@ -261,9 +268,11 @@ end
 
 -- translate colors from the string
 --
--- @param str       the string with colors
--- @param force     force to translate all colors? 
--- 
+-- @param str          the string with colors
+-- @param opt          options
+--                       patch_reset: wrap str with `"${reset}"`?
+--                       ignore_unknown: ignore unknown codes like `"${unknown_code}"`?
+--
 -- 8 colors:
 --
 -- "${red}hello"
@@ -299,21 +308,25 @@ end
 -- "${hello xmake}"
 -- "${hello xmake $beer}"
 --
-function colors.translate(str)
+function colors.translate(str, opt)
 
     -- check string
     if not str then
         return nil
     end
 
+    opt = opt or {}
+
     -- get theme
     local theme = colors.theme()
 
     -- patch reset
-    str = "${reset}" .. str .. "${reset}"
+    if opt.patch_reset ~= false then
+        str = "${reset}" .. str .. "${reset}"
+    end
 
     -- translate color blocks, e.g. ${red}, ${color.xxx}, ${emoji}
-    str = str:gsub("(%${(.-)})", function(_, word) 
+    str = str:gsub("(%${(.-)})", function(_, word)
 
         -- not supported? ignore it
         local nocolors = false
@@ -328,7 +341,7 @@ function colors.translate(str)
         end
 
         -- split words
-        local blocks_raw = word:split("%s+")
+        local blocks_raw = word:split("%s")
 
         -- translate theme color first, e.g ${color.error}
         local blocks = {}
@@ -336,15 +349,15 @@ function colors.translate(str)
             if theme then
                 local theme_block = theme:get(block)
                 if theme_block then
-                    for _, theme_block_sub in ipairs(theme_block:split("%s+")) do
+                    for _, theme_block_sub in ipairs(theme_block:split("%s")) do
                         table.insert(blocks, theme_block_sub)
                     end
-                else 
+                else
                     table.insert(blocks, block)
                 end
             elseif block:startswith("color.") or block:startswith("text.") then
                 local default_theme = {["color.error"] = "red", ["color.warning"] = "yellow", ["text.error"] = "error", ["text.warning"] = "warning"}
-                local theme_block = default_theme[block] 
+                local theme_block = default_theme[block]
                 if theme_block then
                     table.insert(blocks, theme_block)
                 else
@@ -378,12 +391,13 @@ function colors.translate(str)
                 elseif block:startswith("$") then
                     -- plain text, do not translate emoji
                     table.insert(text_buffer, block:sub(2))
-                else
+                elseif colors.emoji() then
                     -- get emoji code
                     local emoji_code = emoji.translate(block)
                     if emoji_code then
                         table.insert(text_buffer, emoji_code)
-                    else
+                    elseif not opt.ignore_unknown then
+                        -- unknown code, regard as plain text
                         table.insert(text_buffer, block)
                     end
                 end

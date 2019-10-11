@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -15,7 +11,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
--- 
+--
 -- Copyright (C) 2015 - 2019, TBOOX Open Source Group.
 --
 -- @author      ruki
@@ -32,6 +28,7 @@ local path      = require("base/path")
 local table     = require("base/table")
 local utils     = require("base/utils")
 local string    = require("base/string")
+local process   = require("base/process")
 
 -- save original interfaces
 os._uid         = os._uid or os.uid
@@ -40,18 +37,18 @@ os._mkdir       = os._mkdir or os.mkdir
 os._rmdir       = os._rmdir or os.rmdir
 os._tmpdir      = os._tmpdir or os.tmpdir
 os._setenv      = os._setenv or os.setenv
+os._getenvs     = os._getenvs or os.getenvs
 os._readlink    = os._readlink or os.readlink
-os._versioninfo = os._versioninfo or os.versioninfo
 
--- copy single file or directory 
+-- copy single file or directory
 function os._cp(src, dst)
-    
+
     -- check
     assert(src and dst)
 
     -- is file?
     if os.isfile(src) then
-        
+
         -- the destination is directory? append the filename
         if os.isdir(dst) or path.islastsep(dst) then
             dst = path.join(dst, path.filename(src))
@@ -63,7 +60,7 @@ function os._cp(src, dst)
         end
     -- is directory?
     elseif os.isdir(src) then
-        
+
         -- the destination directory exists? append the filename
         if os.isdir(dst) or path.islastsep(dst) then
             dst = path.join(dst, path.filename(path.translate(src)))
@@ -78,20 +75,20 @@ function os._cp(src, dst)
     else
         return false, string.format("cannot copy file %s, error: not found this file", src)
     end
-    
+
     -- ok
     return true
 end
 
 -- move single file or directory
 function os._mv(src, dst)
-    
+
     -- check
     assert(src and dst)
 
     -- exists file or directory?
     if os.exists(src) then
- 
+
         -- the destination directory exists? append the filename
         if os.isdir(dst) or path.islastsep(dst) then
             dst = path.join(dst, path.filename(path.translate(src)))
@@ -105,14 +102,14 @@ function os._mv(src, dst)
     else
         return false, string.format("cannot move %s to %s, not found this file %s", src, dst, os.strerror())
     end
-    
+
     -- ok
     return true
 end
 
--- remove single file or directory 
+-- remove single file or directory
 function os._rm(filedir)
-    
+
     -- check
     assert(filedir)
 
@@ -134,13 +131,37 @@ function os._rm(filedir)
     return true
 end
 
+-- get the ramdisk root directory
+function os._ramdir()
+
+    -- get root ramdir
+    local ramdir_root = os._ROOT_RAMDIR
+    if ramdir_root == nil then
+        ramdir_root = os.getenv("XMAKE_RAMDIR")
+    end
+    if ramdir_root == nil then
+        if os.host() == "linux" and os.isdir("/dev/shm") then
+            ramdir_root = "/dev/shm"
+        elseif os.host() == "macosx" and os.isdir("/Volumes/RAM") then
+            -- @note we need the user to execute the command to create it.
+            -- diskutil partitionDisk `hdiutil attach -nomount ram://8388608` GPT APFS "RAM" 0
+            ramdir_root = "/Volumes/RAM"
+        end
+        if ramdir_root == nil then
+            ramdir_root = false
+        end
+        os._ROOT_RAMDIR = ramdir_root
+    end
+    return ramdir_root or nil
+end
+
 -- translate arguments for wildcard
 function os.argw(argv)
 
     -- match all arguments
     local results = {}
     for _, arg in ipairs(table.wrap(argv)) do
-        
+
         -- exists wildcards?
         if arg:find("([%+%-%^%$%*%[%]%%])") then
             local pathes = os.match(arg, 'a')
@@ -189,7 +210,7 @@ end
 
 -- match files or directories
 --
--- @param pattern   the search pattern 
+-- @param pattern   the search pattern
 --                  uses "*" to match any part of a file or directory name,
 --                  uses "**" to recurse into subdirectories.
 --
@@ -202,7 +223,7 @@ end
 -- @code
 -- local dirs, count = os.match("./src/*", true)
 -- local files, count = os.match("./src/**.c")
--- local file = os.match("./src/test.c", 'f', function (filepath, isdir) 
+-- local file = os.match("./src/test.c", 'f', function (filepath, isdir)
 --                  return true   -- continue it
 --                  return false  -- break it
 --              end)
@@ -212,7 +233,7 @@ function os.match(pattern, mode, callback)
 
     -- get the excludes
     local excludes = pattern:match("|.*$")
-    if excludes then excludes = excludes:split("|") end
+    if excludes then excludes = excludes:split("|", {plain = true}) end
 
     -- translate excludes
     if excludes then
@@ -239,7 +260,7 @@ function os.match(pattern, mode, callback)
         assert(mode, "invalid match mode: %s", mode)
     elseif mode then
         mode = 1
-    else 
+    else
         mode = 0
     end
 
@@ -300,7 +321,7 @@ end
 
 -- match directories
 --
--- @note only return {} without count to simplify code, .e.g unpack(os.dirs(""))
+-- @note only return {} without count to simplify code, e.g. unpack(os.dirs(""))
 --
 function os.dirs(pattern, callback)
     return (os.match(pattern, 'd', callback))
@@ -318,7 +339,7 @@ end
 
 -- copy files or directories
 function os.cp(...)
-   
+
     -- check arguments
     local args = {...}
     if #args < 2 then
@@ -345,7 +366,7 @@ end
 
 -- move files or directories
 function os.mv(...)
-   
+
     -- check arguments
     local args = {...}
     if #args < 2 then
@@ -372,7 +393,7 @@ end
 
 -- remove files or directories
 function os.rm(...)
-    
+
     -- check arguments
     local args = {...}
     if #args < 1 then
@@ -437,14 +458,14 @@ function os.cd(dir)
     else
         return nil, string.format("cannot change directory %s, not found this directory %s", dir, os.strerror())
     end
-    
+
     -- ok
     return oldir
 end
 
 -- create directories
 function os.mkdir(...)
-   
+
     -- check arguments
     local args = {...}
     if #args < 1 then
@@ -464,7 +485,7 @@ end
 
 -- remove directories
 function os.rmdir(...)
-   
+
     -- check arguments
     local args = {...}
     if #args < 1 then
@@ -497,7 +518,7 @@ function os.tmpdir()
 
     -- get root tmpdir
     if os._ROOT_TMPDIR == nil then
-        os._ROOT_TMPDIR = os.getenv("XMAKE_TMPDIR") or os._tmpdir()
+        os._ROOT_TMPDIR = (os.getenv("XMAKE_TMPDIR") or os._ramdir() or os.getenv("TMPDIR") or os._tmpdir()):trim()
     end
     local tmpdir_root = os._ROOT_TMPDIR
 
@@ -516,7 +537,7 @@ end
 
 -- generate the temporary file path
 function os.tmpfile(key)
-    return path.join(os.tmpdir(), "_" .. (hash.uuid(key):gsub("-", "")))
+    return path.join(os.tmpdir(), "_" .. (hash.uuid(key):gsub("-", "")))                                                        
 end
 
 -- run command
@@ -535,15 +556,18 @@ end
 -- run command with arguments list
 function os.runv(program, argv, opt)
 
+    -- init options
+    opt = opt or {}
+
     -- make temporary log file
-    local log = os.tmpfile()
+    local logfile = os.tmpfile()
 
     -- execute it
-    local ok = os.execv(program, argv, table.join(opt or {}, {stdout = log, stderr = log}))
+    local ok = os.execv(program, argv, table.join(opt, {stdout = logfile, stderr = logfile}))
     if ok ~= 0 then
 
         -- make errors
-        local errors = io.readfile(log)
+        local errors = io.readfile(logfile)
         if not errors or #errors == 0 then
             if argv ~= nil then
                 errors = string.format("runv(%s %s) failed(%d)!", program, table.concat(argv, ' '), ok)
@@ -553,20 +577,20 @@ function os.runv(program, argv, opt)
         end
 
         -- remove the temporary log file
-        os.rm(log)
+        os.rm(logfile)
 
         -- failed
         return false, errors
     end
 
     -- remove the temporary log file
-    os.rm(log)
+    os.rm(logfile)
 
     -- ok
     return true
 end
 
--- execute command 
+-- execute command
 function os.exec(cmd, outfile, errfile)
 
     -- parse arguments
@@ -583,8 +607,9 @@ end
 --
 -- @param program     "clang", "xcrun -sdk macosx clang", "~/dir/test\ xxx/clang"
 --        filename    "clang", "xcrun"", "~/dir/test\ xxx/clang"
--- @param argv        the arguments 
--- @param opt         the option, .e.g {wildcards = false, stdout = outfile, stderr = errfile}
+-- @param argv        the arguments
+-- @param opt         the options, e.g. {wildcards = false, stdout = outfile, stderr = errfile,
+--                                       envs = {PATH = "xxx;xx", CFLAGS = "xx"}}
 --
 function os.execv(program, argv, opt)
 
@@ -604,7 +629,7 @@ function os.execv(program, argv, opt)
     local filename = program
     if not os.isexec(program) then
 
-        -- parse the filename and arguments, .e.g "xcrun -sdk macosx clang"
+        -- parse the filename and arguments, e.g. "xcrun -sdk macosx clang"
         local splitinfo = program:split("%s")
         filename = splitinfo[1]
         if #splitinfo > 1 then
@@ -612,14 +637,40 @@ function os.execv(program, argv, opt)
         end
     end
 
+    -- uses the given environments?
+    local envs = nil
+    if opt.envs then
+        local envars = os.getenvs()
+        for k, v in pairs(opt.envs) do
+            envars[k] = v
+        end
+        envs = {}
+        for k, v in pairs(envars) do
+            table.insert(envs, k .. '=' .. v)
+        end
+    end
+
+    -- init open options
+    local openopt = {envs = envs}
+    if type(opt.stdout) == "table" then
+        openopt.outfile = opt.stdout._FILE
+    else
+        openopt.outpath = opt.stdout
+    end
+    if type(opt.stderr) == "table" then
+        openopt.errfile = opt.stderr._FILE
+    else
+        openopt.errpath = opt.stderr
+    end
+
     -- open command
     local ok = -1
-    local proc = process.openv(filename, argv, opt.stdout, opt.stderr)
+    local proc = process.openv(filename, argv, openopt)
     if proc ~= nil then
 
         -- wait process
         local waitok = -1
-        local status = -1 
+        local status = -1
         if coroutine.running() then
 
             -- save the current directory
@@ -628,7 +679,7 @@ function os.execv(program, argv, opt)
             -- wait it
             repeat
                 -- poll it
-                waitok, status = process.wait(proc, 0)
+                waitok, status = proc:wait(0)
                 if waitok == 0 then
                     waitok, status = coroutine.yield(proc)
                 end
@@ -637,7 +688,7 @@ function os.execv(program, argv, opt)
             -- resume the current directory
             os.cd(curdir)
         else
-            waitok, status = process.wait(proc, -1)
+            waitok, status = proc:wait(-1)
         end
 
         -- get status
@@ -646,7 +697,7 @@ function os.execv(program, argv, opt)
         end
 
         -- close process
-        process.close(proc)
+        proc:close()
     end
 
     -- ok?
@@ -669,12 +720,15 @@ end
 -- run command with arguments and return output and error data
 function os.iorunv(program, argv, opt)
 
+    -- init options
+    opt = opt or {}
+
     -- make temporary output and error file
     local outfile = os.tmpfile()
     local errfile = os.tmpfile()
 
     -- run command
-    local ok = os.execv(program, argv, table.join(opt or {}, {stdout = outfile, stderr = errfile})) 
+    local ok = os.execv(program, argv, table.join(opt, {stdout = outfile, stderr = errfile}))
 
     -- get output and error data
     local outdata = io.readfile(outfile)
@@ -692,20 +746,41 @@ end
 --
 -- the parent function will capture it if we uses pcall or xpcall
 --
-function os.raise(msg, ...)
+function os.raiselevel(level, msg, ...)
+
+    -- set level of this function
+    level = level + 1
 
     -- flush log
     log:flush()
 
-    -- flush io buffer 
+    -- flush io buffer
     io.flush()
 
     -- raise it
-    if msg then
-        error(string.tryformat(msg, ...))
+    if type(msg) == "string" then
+        error(string.tryformat(msg, ...), level)
+    elseif type(msg) == "table" then
+        local errobjstr, errors = string.serialize(msg, {strip = true, indent = false})
+        if errobjstr then
+            error("[@encode(error)]: " .. errobjstr, level)
+        else
+            error(errors, level)
+        end
+    elseif msg ~= nil then
+        error(tostring(msg), level)
     else
-        error()
+        error(msg, level)
     end
+end
+
+-- raise an exception and abort the current script
+--
+-- the parent function will capture it if we uses pcall or xpcall
+--
+function os.raise(msg, ...)
+    -- add return to make it a tail call
+    return os.raiselevel(1, msg, ...)
 end
 
 -- is executable program file?
@@ -768,40 +843,39 @@ function os.is_arch(...)
     end
 end
 
--- get the system null device 
+-- get the system null device
 function os.nuldev(input)
 
-    -- init the output nuldev
-    if xmake._NULDEV_OUTPUT == nil then
-        if os.host() == "windows" then
-            xmake._NULDEV_OUTPUT = "nul"
-        else
-            xmake._NULDEV_OUTPUT = "/dev/null"
-        end
-    end
-
-    -- init the input nuldev
-    if xmake._NULDEV_INPUT == nil then
-        if os.host() == "windows" then
-            -- create an empty file
-            --
-            -- for fix issue on mingw:
-            -- $ gcc -fopenmp -S -o nul -xc nul
-            -- gcc: fatal error：input file ‘nul’ is the same as output file
-            -- 
-            local inputfile = os.tmpfile()
-            io.writefile(inputfile, "")
-            xmake._NULDEV_INPUT = inputfile
-        else
-            xmake._NULDEV_INPUT = "/dev/null"
-        end
-    end
-
-    -- get nuldev
     if input then
+        if os.host() == "windows" then
+            -- init the input nuldev
+            if xmake._NULDEV_INPUT == nil then
+                -- create an empty file
+                --
+                -- for fix issue on mingw:
+                -- $ gcc -fopenmp -S -o nul -xc nul
+                -- gcc: fatal error：input file 'nul' is the same as output file
+                --
+                local inputfile = os.tmpfile()
+                io.writefile(inputfile, "")
+                xmake._NULDEV_INPUT = inputfile
+            end
+        else
+            if xmake._NULDEV_INPUT == nil then
+                xmake._NULDEV_INPUT = "/dev/null"
+            end
+        end
         return xmake._NULDEV_INPUT
     else
-        return xmake._NULDEV_OUTPUT
+        if os.host() == "windows" then
+            -- @note cannot cache this file path to avoid multi-processes writing to the same file at the same time
+            return os.tmpfile()
+        else
+            if xmake._NULDEV_OUTPUT == nil then
+                xmake._NULDEV_OUTPUT = "/dev/null"
+            end
+            return xmake._NULDEV_OUTPUT
+        end
     end
 end
 
@@ -810,7 +884,7 @@ function os.user_agent()
 
     -- init user agent
     if os._USER_AGENT == nil then
-        
+
         -- init systems
         local systems = {macosx = "Macintosh", linux = "Linux", windows = "Windows"}
 
@@ -904,24 +978,73 @@ function os.fscase()
     return os._FSCASE
 end
 
--- set values to environment variable 
-function os.setenv(name, ...)
-
-    -- get separator
-    local seperator = os.host() == "windows" and ';' or ':'
-    
-    -- append values
-    return os._setenv(name, table.concat({...}, seperator))
+-- get all current environment variables
+function os.getenvs()
+    local envs = {}
+    for _, line in ipairs(os._getenvs()) do
+        local p = line:find('=', 1, true)
+        if p then
+            local key = line:sub(1, p - 1):trim()
+            if os.host() == "windows" then
+                key = key:upper()
+            end
+            local values = line:sub(p + 1):trim()
+            if #key > 0 then
+                envs[key] = values
+            end
+        end
+    end
+    return envs
 end
 
--- add values to environment variable 
-function os.addenv(name, ...)
+-- set values to environment variable
+function os.setenv(name, ...)
+    local values = {...}
+    if #values <= 1 then
+        -- keep compatible with original implementation
+        return os._setenv(name, values[1] or "")
+    else
+        return os._setenv(name, path.joinenv(values))
+    end
+end
 
-    -- get separator
-    local seperator = os.host() == "windows" and ';' or ':'
-    
-    -- append values
-    return os.setenv(name, table.concat({...}, seperator) .. seperator ..  (os.getenv(name) or ""))
+-- add values to environment variable
+function os.addenv(name, ...)
+    local values = {...}
+    if #values > 0 then
+        local oldenv = os.getenv(name)
+        local appendenv = path.joinenv(values)
+        if oldenv == "" or oldenv == nil then
+            return os._setenv(name, appendenv)
+        else
+            return os._setenv(name, appendenv .. path.envsep() .. oldenv)
+        end
+    else
+        return true
+    end
+end
+
+-- set values to environment variable with the given seperator
+function os.setenvp(name, values, sep)
+    sep = sep or path.envsep()
+    return os._setenv(name, table.concat(table.wrap(values), sep))
+end
+
+-- add values to environment variable with the given seperator
+function os.addenvp(name, values, sep)
+    sep = sep or path.envsep()
+    values = table.wrap(values)
+    if #values > 0 then
+        local oldenv = os.getenv(name)
+        local appendenv = table.concat(values, sep)
+        if oldenv == "" or oldenv == nil then
+            return os._setenv(name, appendenv)
+        else
+            return os._setenv(name, appendenv .. sep .. oldenv)
+        end
+    else
+        return true
+    end
 end
 
 -- read string data from pasteboard
@@ -980,12 +1103,6 @@ end
 -- get the project file
 function os.projectfile()
     return xmake._PROJECT_FILE
-end
-
--- get version info
-function os.versioninfo()
-    os._VERSIONINFO = os._VERSIONINFO or os._versioninfo()
-    return os._VERSIONINFO
 end
 
 -- return module

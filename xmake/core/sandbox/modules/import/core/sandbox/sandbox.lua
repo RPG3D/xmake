@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -28,7 +24,37 @@ local sandbox_core_sandbox = sandbox_core_sandbox or {}
 -- load modules
 local sandbox   = require("sandbox/sandbox")
 local raise     = require("sandbox/modules/raise")
+local try       = require("sandbox/modules/try")
+local catch     = require("sandbox/modules/catch")
+local utils     = require("base/utils")
+local table     = require("base/table")
 local history   = require("project/history")
+local dump      = require("base/dump")
+local option    = require("base/option")
+
+-- print variables for interactive mode
+function sandbox_core_sandbox._interactive_dump(...)
+    local diagnosis = option.get("diagnosis")
+    local values = table.pack(...)
+    -- do not use #values since nil might be included
+    local n = values.n
+    if n <= 1 then
+        dump(values[1], "< ", diagnosis)
+    else
+        local fmt = "< %d: "
+        if n >= 1000 then
+            -- try `unpack({}, 1, 5000)`, wish you happy!
+            fmt = "< %4d: "
+        elseif n >= 100 then
+            fmt = "< %3d: "
+        elseif n >= 10 then
+            fmt = "< %2d: "
+        end
+        for i = 1, n do
+            dump(values[i], string.format(fmt, i), diagnosis)
+        end
+    end
+end
 
 -- enter interactive mode
 function sandbox_core_sandbox.interactive()
@@ -39,7 +65,8 @@ function sandbox_core_sandbox.interactive()
         raise("cannot get sandbox instance!")
     end
 
-    -- fork a new sandbox 
+    -- fork a new sandbox
+    local errors
     instance, errors = instance:fork()
     if not instance then
         raise(errors)
@@ -47,8 +74,7 @@ function sandbox_core_sandbox.interactive()
 
     -- load repl history
     local replhistory = nil
-    local enable_readline = os.versioninfo().features.readline
-    if enable_readline then
+    if readline then
 
         -- clear history
         readline.clear_history()
@@ -60,11 +86,14 @@ function sandbox_core_sandbox.interactive()
         end
     end
 
+    -- register dump function for interactive mode
+    instance._PUBLIC["$interactive_dump"] = sandbox_core_sandbox._interactive_dump
+
     -- enter interactive mode with this new sandbox
-    sandbox.interactive(instance._PUBLIC) 
+    sandbox.interactive(instance._PUBLIC)
 
     -- save repl history if readline is enabled
-    if enable_readline then
+    if readline then
 
         -- save to history
         local entries = readline.history_list()

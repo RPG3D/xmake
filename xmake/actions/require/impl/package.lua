@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -70,7 +66,7 @@ function _parse_require(require_str, requires_extra, parentinfo)
 
     -- get version
     --
-    -- .e.g 
+    -- e.g. 
     -- 
     -- lastest
     -- >=1.5.1 <1.6.0  
@@ -121,6 +117,12 @@ function _parse_require(require_str, requires_extra, parentinfo)
         require_build_configs.debug = true
     end
 
+    -- require packge in the current host platform
+    if require_extra.host then
+        require_extra.plat = os.host()
+        require_extra.arch = os.arch()
+    end
+
     -- init required item
     local required = {}
     parentinfo = parentinfo or {}
@@ -130,6 +132,8 @@ function _parse_require(require_str, requires_extra, parentinfo)
         originstr        = require_str,
         reponame         = reponame,
         version          = version,
+        plat             = require_extra.plat,      -- require package in the given platform 
+        arch             = require_extra.arch,      -- require package in the given architecture
         alias            = require_extra.alias,     -- set package alias name
         group            = require_extra.group,     -- only uses the first package in same group
         system           = require_extra.system,    -- default: true, we can set it to disable system package manually
@@ -183,7 +187,7 @@ end
 
 -- sort package deps
 --
--- .e.g 
+-- e.g. 
 --
 -- a.deps = b
 -- b.deps = c
@@ -202,6 +206,7 @@ end
 -- add some builtin configurations to package
 function _add_package_configurations(package)
     package:add("configs", "debug", {builtin = true, description = "Enable debug symbols.", default = false, type = "boolean"})
+    package:add("configs", "shared", {builtin = true, description = "Enable shared library.", default = false, type = "boolean"})
     package:add("configs", "cflags", {builtin = true, description = "Set the C compiler flags."})
     package:add("configs", "cxflags", {builtin = true, description = "Set the C/C++ compiler flags."})
     package:add("configs", "cxxflags", {builtin = true, description = "Set the C++ compiler flags."})
@@ -336,6 +341,9 @@ function _load_package(packagename, requireinfo)
         on_load(package)
     end
 
+    -- load environments from the manifest to enable the environments of on_install()
+    package:envs_load()
+
     -- save this package package to cache
     packages[packagename] = package
     _g._PACKAGES = packages
@@ -368,6 +376,7 @@ function _load_packages(requires, opt)
                 if deps and opt.nodeps ~= true then
                     local packagedeps = {}
                     for _, dep in ipairs(_load_packages(deps, {requires_extra = package:get("__extra_deps"), parentinfo = requireinfo.info, nodeps = opt.nodeps})) do
+                        dep:parents_add(package)
                         table.insert(packages, dep)
                         packagedeps[dep:name()] = dep
                     end
@@ -418,8 +427,7 @@ function _get_confirm(packages)
     end
 
     -- get confirm
-    local confirm = option.get("yes")
-    if confirm == nil then
+    local confirm = utils.confirm({default = true, description = function ()
 
         -- get packages for each repositories
         local packages_repo = {}
@@ -464,17 +472,7 @@ function _get_confirm(packages)
                 end
             end
         end
-        cprint("please input: y (y/n)")
-
-        -- get answer
-        io.flush()
-        local answer = io.read()
-        if answer == 'y' or answer == '' then
-            confirm = true
-        end
-    end
-
-    -- ok?
+    end})
     return confirm
 end
 
@@ -584,15 +582,18 @@ function _install_packages(packages_install, packages_download)
                 end
 
                 -- download this package first
+                local downloaded = true
                 if packages_download[tostring(package)] then
                     packages_downloading[index] = package
-                    action.download(package)
+                    downloaded = action.download(package)
                     packages_downloading[index] = nil
                 end
             
                 -- install this package
                 packages_installing[index] = package
-                action.install(package)
+                if downloaded then
+                    action.install(package)
+                end
                 packages_installing[index] = nil
 
                 -- mark this group as 'installed' or 'failed'
@@ -694,21 +695,21 @@ function install_packages(requires, opt)
     local packages = load_packages(requires, opt)
 
     -- fetch packages (with system) from local first
-    if not option.get("force") then 
-        process.runjobs(function (index)
-            local package = packages[index]
-            if package then
-                package:fetch()
-            end
-        end, #packages)
-    end
+    process.runjobs(function (index)
+        local package = packages[index]
+        if package and (not option.get("force") or (option.get("shallow") and package:parents())) then
+            package:envs_enter()
+            package:fetch()
+            package:envs_leave()
+        end
+    end, #packages)
 
     -- filter packages
     local packages_install = {}
     local packages_download = {}
     local packages_unsupported = {}
     for _, package in ipairs(packages) do
-        if (option.get("force") or not package:exists()) and (#package:urls() > 0 or package:script("install")) then
+        if not package:exists() and (#package:urls() > 0 or package:script("install")) then
             if package:supported() then
                 if #package:urls() > 0 then
                     packages_download[tostring(package)] = package

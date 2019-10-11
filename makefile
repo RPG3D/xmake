@@ -1,12 +1,26 @@
 # is debug?
-debug  :=n
-verbose:=
+debug  		:=n
+verbose 	:=
 
-#debug  :=y
-#verbose:=-v
+#debug   	:=y
+#verbose 	:=-v
 
 # prefix
-prefix:=$(if $(prefix),$(prefix),$(if $(findstring /usr/local/bin,$(PATH)),/usr/local,/usr))
+ifeq ($(prefix),) # compatible with brew script (make install prefix=xxx)
+ifeq ($(PREFIX),)
+prefix 		:=$(if $(findstring /usr/local/bin,$(PATH)),/usr/local,/usr)
+else
+prefix 		:=$(PREFIX)
+endif
+endif
+
+# the temporary directory
+ifeq ($(TMPDIR),)
+TMP_DIR 	:=$(if $(TMP_DIR),$(TMP_DIR),/tmp)
+else
+# for termux
+TMP_DIR 	:=$(if $(TMP_DIR),$(TMP_DIR),$(TMPDIR))
+endif
 
 # platform
 PLAT 		:=$(if $(PLAT),$(PLAT),$(if ${shell uname | egrep -i linux},linux,))
@@ -39,10 +53,18 @@ endif
 
 endif
 
+# conditionally map ARCH from amd64 to x86_64 if set from the outside
+#
+# Some OS provide a definition for $(ARCH) through an environment
+# variable. It might be set to amd64 which implies x86_64. Since e.g.
+# luajit expects either i386 or x86_64, the value amd64 is transformed
+# to match a directory for a platform dependent implementation.
+ARCH 		:=$(if $(findstring amd64,$(ARCH)),x86_64,$(ARCH))
+
 xmake_dir_install   :=$(prefix)/share/xmake
 xmake_core          :=./core/src/demo/demo.b
 xmake_core_install  :=$(xmake_dir_install)/xmake
-xmake_loader        :=/tmp/xmake_loader
+xmake_loader        :=$(TMP_DIR)/xmake_loader
 xmake_loader_install:=$(prefix)/bin/xmake
 
 tip:
@@ -78,7 +100,7 @@ install:
 	@mv $(xmake_loader) $(xmake_loader_install)
 	@chmod 777 $(xmake_loader_install)
 	@# remove xmake.out
-	@if [ -f '/tmp/xmake.out' ]; then rm /tmp/xmake.out; fi
+	@if [ -f "$(TMP_DIR)/xmake.out" ]; then rm $(TMP_DIR)/xmake.out; fi
 	@# ok
 	@echo ok!
 
@@ -89,7 +111,7 @@ uninstall:
 	@echo ok!
 
 test:
-	@xmake lua --backtrace tests/test.lua $(name)
+	@xmake lua --verbose tests/run.lua $(name)
 	@echo ok!
 
 .PHONY: tip build install uninstall

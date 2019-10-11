@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -55,3 +51,24 @@ theme("default")
     -- the building target file
     set_color("build.target", "magenta")
 
+    -- color dump
+    set_text("dump.default_format", "%s")
+    set_text("dump.udata_format", "%s")
+    set_text("dump.table_format", "%s")
+    set_text("dump.anchor", "&%s")
+    set_text("dump.reference", "*%s")
+    set_color("dump.anchor", "yellow")
+    set_color("dump.reference", "yellow")
+    set_color("dump.default", "red")
+    set_color("dump.udata", "yellow")
+    set_color("dump.table", "bright")
+    set_color("dump.string", "magenta bright")
+    set_color("dump.string_quote", "magenta")
+    set_color("dump.keyword", "blue")
+    set_color("dump.number", "green")
+    set_color("dump.function", "cyan")
+
+    -- menu
+    set_color("menu.main.task.name", "magenta")
+    set_color("menu.option.name", "green")
+    set_color("menu.usage", "cyan")

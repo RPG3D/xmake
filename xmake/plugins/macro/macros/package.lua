@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -32,14 +28,14 @@ import("core.platform.platform")
 local options =
 {
     {'p', "plat",       "kv",  os.host(),   "Set the platform."                                    }
-,   {'a', "arch",       "kv",  nil,         "Set the architectures. .e.g 'armv7, arm64'"           }
+,   {'a', "arch",       "kv",  nil,         "Set the architectures. e.g. 'armv7, arm64'"           }
 ,   {'f', "config",     "kv",  nil,         "Pass the config arguments to \"xmake config\" .."     }
 ,   {'o', "outputdir",  "kv",  nil,         "Set the output directory of the package."             }
 }
 
 -- package all
 --
--- .e.g
+-- e.g.
 -- xmake m package 
 -- xmake m package -f "-m debug"
 -- xmake m package -p linux
@@ -89,16 +85,16 @@ function main(argv)
         for _, target in pairs(project.targets()) do
 
             -- get all modes
-            local modedirs = os.match(format("%s/%s.pkg/lib/*", outputdir, target:name()), true)
-            for _, modedir in ipairs(modedirs) do
-                
-                -- get mode
-                local mode = path.basename(modedir)
+            local modes = {}
+            for _, modedir in ipairs(os.dirs(format("%s/%s.pkg/*/*/lib/*", outputdir, target:name()))) do
+                table.insert(modes, path.basename(modedir))
+            end
+            for _, mode in ipairs(table.unique(modes)) do
 
                 -- make lipo arguments
                 local lipoargs = nil
                 for _, arch in ipairs(archs) do
-                    local archfile = format("%s/%s.pkg/lib/%s/%s/%s/%s", outputdir, target:name(), mode, plat, arch:trim(), path.filename(target:targetfile())) 
+                    local archfile = format("%s/%s.pkg/%s/%s/lib/%s/%s", outputdir, target:name(), plat, arch:trim(), mode, path.filename(target:targetfile())) 
                     if os.isfile(archfile) then
                         lipoargs = format("%s -arch %s %s", lipoargs or "", arch, archfile) 
                     end
@@ -106,10 +102,10 @@ function main(argv)
                 if lipoargs then
 
                     -- make full lipo arguments
-                    lipoargs = format("-create %s -output %s/%s.pkg/lib/%s/%s/universal/%s", lipoargs, outputdir, target:name(), mode, plat, path.filename(target:targetfile()))
+                    lipoargs = format("-create %s -output %s/%s.pkg/%s/universal/lib/%s/%s", lipoargs, outputdir, target:name(), plat, mode, path.filename(target:targetfile()))
 
                     -- make universal directory
-                    os.mkdir(format("%s/%s.pkg/lib/%s/%s/universal", outputdir, target:name(), mode, plat))
+                    os.mkdir(format("%s/%s.pkg/%s/universal/lib/%s", outputdir, target:name(), plat, mode))
 
                     -- package all archs
                     os.execv("xmake", {"l", "lipo", lipoargs})

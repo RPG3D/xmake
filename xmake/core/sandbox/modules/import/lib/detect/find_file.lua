@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -54,8 +50,8 @@ end
 -- find file
 --
 -- @param name      the file name
--- @param pathes    the search pathes (.e.g dirs, pathes, winreg pathes)
--- @param opt       the options, .e.g {suffixes = {"/aa", "/bb"}}
+-- @param pathes    the search pathes (e.g. dirs, pathes, winreg pathes)
+-- @param opt       the options, e.g. {suffixes = {"/aa", "/bb"}}
 --
 -- @return          the file path
 --
@@ -79,30 +75,36 @@ function sandbox_lib_detect_find_file.main(name, pathes, opt)
 
         -- format path for builtin variables
         if type(_path) == "function" then
-            local ok, results = sandbox.load(_path) 
+            local ok, results = sandbox.load(_path)
             if ok then
                 _path = results or ""
-            else 
+            else
                 raise(results)
             end
-        else
-            _path = vformat(_path)
+        elseif type(_path) == "string" then
+            if _path:match("^%$%(env .+%)$") then
+                _path = path.splitenv(vformat(_path))
+            else
+                _path = vformat(_path)
+            end
         end
 
-        -- find file with suffixes
-        if #suffixes > 0 then
-            for _, suffix in ipairs(suffixes) do
-                local filedir = path.join(_path, suffix)
-                local results = sandbox_lib_detect_find_file._find(filedir, name)
+        for _, _s_path in ipairs(table.wrap(_path)) do
+            -- find file with suffixes
+            if #suffixes > 0 then
+                for _, suffix in ipairs(suffixes) do
+                    local filedir = path.join(_s_path, suffix)
+                    local results = sandbox_lib_detect_find_file._find(filedir, name)
+                    if results then
+                        return results
+                    end
+                end
+            else
+                -- find file in the given path
+                local results = sandbox_lib_detect_find_file._find(_s_path, name)
                 if results then
                     return results
                 end
-            end
-        else
-            -- find file in the given path
-            local results = sandbox_lib_detect_find_file._find(_path, name)
-            if results then
-                return results
             end
         end
     end

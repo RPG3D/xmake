@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -44,6 +40,8 @@ function main(platform)
     platform:add("cxflags", "-arch " .. arch, "-fpascal-strings", "-fmessage-length=0")
     platform:add("ldflags", "-arch " .. arch)
     if target_minver then
+        platform:add("cxflags", "-mmacosx-version-min=" .. target_minver)
+        platform:add("mxflags", "-mmacosx-version-min=" .. target_minver)
         platform:add("ldflags", "-mmacosx-version-min=" .. target_minver)
     end
     if xcode_sdkdir then
@@ -92,19 +90,5 @@ function main(platform)
     -- init flags for rust
     platform:set("rc-shflags", "")
     platform:set("rc-ldflags", "")
-
-    -- init flags for cuda
-    local cuflags_arch = { i386 = "-m32 -Xcompiler -arch -Xcompiler i386", x86_64 = "-m64 -Xcompiler -arch -Xcompiler x86_64" }
-    local ldflags_arch = { i386 = "-m32 -Xlinker -arch -Xlinker i386", x86_64 = "-m64 -Xlinker -arch -Xlinker x86_64" }
-    platform:add("cuflags", cuflags_arch[arch] or "")
-    platform:add("cu-shflags", ldflags_arch[arch] or "")
-    platform:add("cu-ldflags", ldflags_arch[arch] or "")
-    local cuda_dir = config.get("cuda")
-    if cuda_dir then
-        platform:add("cuflags", "-I" .. os.args(path.join(cuda_dir, "include")))
-        platform:add("cu-ldflags", "-L" .. os.args(path.join(cuda_dir, "lib")))
-        platform:add("cu-shflags", "-L" .. os.args(path.join(cuda_dir, "lib")))
-        platform:add("cu-ldflags", "-Xlinker -rpath -Xlinker " .. os.args(path.join(cuda_dir, "lib")))
-    end
 end
 

@@ -13,21 +13,26 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - gcc-5
+            - p7zip-full
 
 install:
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; brew install dmd rust; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; brew install dmd rust p7zip; fi
   - echo $CI
 
 script:
   - scripts/get.sh __local__
   - source ~/.xmake/profile
   - xmake --version
-  - xmake f -m coverage -P core 
-  - xmake -v -P core 
+  - xmake -P core 
   - export XMAKE_PROGRAM_DIR=$PWD/xmake
   - core/build/xmake --version
   - export XMAKE_PROGRAM_DIR=~/.local/share/xmake
   - cp core/build/xmake "$XMAKE_PROGRAM_DIR" || sudo cp core/build/xmake "$XMAKE_PROGRAM_DIR"
   - xmake --version
-  - travis_wait 60 xmake lua -D tests/test.lua
+  - xmake l private.utils.bcsave --rootname='@programdir' -x 'scripts/**|templates/**' xmake
+  - xmake --version
+  - travis_wait 60 xmake lua -v -D tests/run.lua
+  - scripts/archive-all.sh
+  - scripts/makeself/build-runfile.sh 
+  - scripts/makeself/xmake.gz.run --info
 

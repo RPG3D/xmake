@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -28,6 +24,24 @@ local winos = winos or {}
 -- load modules
 local os     = require("base/os")
 local semver = require("base/semver")
+
+
+winos._ansi_cp  = winos._ansi_cp or winos.ansi_cp
+winos._oem_cp   = winos._oem_cp  or winos.oem_cp
+
+function winos.ansi_cp()
+    if not winos._ANSI_CP then
+         winos._ANSI_CP = winos._ansi_cp()
+    end
+    return winos._ANSI_CP
+end
+
+function winos.oem_cp()
+    if not winos._OEM_CP then
+         winos._OEM_CP = winos._oem_cp()
+    end
+    return winos._OEM_CP
+end
 
 -- get windows version from name
 function winos._version_from_name(name)
@@ -99,18 +113,30 @@ function winos.version()
 
     -- get it from cache first
     if winos._VERSION ~= nil then
-        return winos._VERSION 
+        return winos._VERSION
     end
 
     -- get winver
     local winver = nil
     local ok, verstr = os.iorun("cmd /c ver")
     if ok and verstr then
-        winver = verstr:match("%[.-(%d+%.%d+%.%d+)]")
+        winver = verstr:match("%[.-([%d%.]+)]")
         if winver then
             winver = winver:trim()
         end
-        winver = semver.new(winver)
+        local sem_winver = nil
+        local seg = 0
+        for num in winver:gmatch("%d+") do
+            if seg == 0 then
+                sem_winver = num
+            elseif seg == 3 then
+                sem_winver = sem_winver .. "+" .. num
+            else
+                sem_winver = sem_winver .. "." .. num
+            end
+            seg = seg + 1
+        end
+        winver = semver.new(sem_winver)
     end
 
     -- rewrite comparator

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -86,7 +82,7 @@ function main()
             install(targetname or ifelse(option.get("all"), "__all", "__def"))
 
             -- trace
-            cprint("${bright}install ok!${clear}${ok_hand}")
+            cprint("${bright}install ok!${clear}")
         end,
 
         catch
@@ -107,7 +103,7 @@ function main()
                             install(targetname or ifelse(option.get("all"), "__all", "__def"))
 
                             -- trace
-                            cprint("${bright}install ok!${clear}${ok_hand}")
+                            cprint("${bright}install ok!${clear}")
 
                             -- ok
                             return true
@@ -127,30 +123,15 @@ function main()
                 -- continue to install with administrator permission?
                 if sudo.has() then
 
-                    -- get confirm
-                    local confirm = option.get("yes")
-                    if confirm == nil then
-
-                        -- show tips
-                        cprint("${bright color.warning}note: ${clear}try continue to install with administrator permission again?")
-                        cprint("please input: y (y/n)")
-
-                        -- get answer
-                        io.flush()
-                        local answer = io.read()
-                        if answer == 'y' or answer == '' then
-                            confirm = true
-                        end
-                    end
-
                     -- confirm to install?
+                    local confirm = utils.confirm({default = true, description = "try continue to install with administrator permission again"})
                     if confirm then
 
                         -- install target with administrator permission
                         sudo.runl(path.join(os.scriptdir(), "install_admin.lua"), {targetname or ifelse(option.get("all"), "__all", "__def"), option.get("installdir"), option.get("prefix")})
 
                         -- trace
-                        cprint("${bright}install ok!${clear}${ok_hand}")
+                        cprint("${bright}install ok!${clear}")
                     end
                 end
             end

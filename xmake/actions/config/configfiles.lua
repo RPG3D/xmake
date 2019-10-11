@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -185,7 +181,7 @@ function _generate_configfile(srcfile, dstfile, fileinfo, targets)
             -- is ${define variable}?
             local isdefine = false
             if variable:startswith("define ") then
-                variable = variable:split("%s+")[2]
+                variable = variable:split("%s")[2]
                 isdefine = true
             end
 
@@ -193,7 +189,7 @@ function _generate_configfile(srcfile, dstfile, fileinfo, targets)
             local default = nil
             local isdefault = false
             if variable:startswith("default ") then
-                local varinfo = variable:split("%s+")
+                local varinfo = variable:split("%s")
                 variable  = varinfo[2]
                 default   = varinfo[3]
                 isdefault = true

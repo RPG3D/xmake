@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -91,7 +87,7 @@ function interpreter._merge_root_scope(root, root_prev, override)
     root_prev = root_prev or {}
     for scope_kind_and_name, _ in pairs(root or {}) do
         -- only merge sub-scope for each kind("target@@xxxx") or __rootkind 
-        -- we need ignore the sub-root scope .e.g target{} after fetching root scope
+        -- we need ignore the sub-root scope e.g. target{} after fetching root scope
         --
         if scope_kind_and_name:find("@@", 1, true) or scope_kind_and_name == "__rootkind" then
             local scope_values = root_prev[scope_kind_and_name] or {}
@@ -123,7 +119,7 @@ function interpreter._fetch_root_scope(root)
     for scope_kind_and_name, _ in pairs(root or {}) do
         
         -- is scope_kind@@scope_name?
-        scope_kind_and_name = scope_kind_and_name:split("@@")
+        scope_kind_and_name = scope_kind_and_name:split("@@", {plain = true})
         if #scope_kind_and_name == 2 then
             local scope_kind = scope_kind_and_name[1] 
             local scope_name = scope_kind_and_name[2]
@@ -146,10 +142,10 @@ function interpreter._fetch_root_scope(root)
     end
 end
 
--- save api source info, .e.g call api() in sourcefile:linenumber
+-- save api source info, e.g. call api() in sourcefile:linenumber
 function interpreter:_save_sourceinfo_to_scope(scope, apiname, values)
 
-    -- save api source info, .e.g call api() in sourcefile:linenumber
+    -- save api source info, e.g. call api() in sourcefile:linenumber
     local sourceinfo = debug.getinfo(3, "Sl")
     if sourceinfo then
         scope["__sourceinfo_" .. apiname] = scope["__sourceinfo_" .. apiname] or {}
@@ -264,7 +260,7 @@ function interpreter:_api_register_xxx_values(scope_kind, action, apifunc, ...)
             scope["__override_" .. apiname] = true
         end
 
-        -- save api source info, .e.g call api() in sourcefile:linenumber
+        -- save api source info, e.g. call api() in sourcefile:linenumber
         self:_save_sourceinfo_to_scope(scope, apiname, {...})
 
         -- call function
@@ -416,7 +412,7 @@ function interpreter:_clear()
 end
 
 -- filter values
-function interpreter:_filter(values)
+function interpreter:_filter(values, level)
 
     -- check
     assert(self and values ~= nil)
@@ -427,48 +423,48 @@ function interpreter:_filter(values)
         return values
     end
 
-    -- done
-    local results = {}
-    if table.is_dictionary(values) then
-        -- filter keyvalues
-        for key, value in pairs(values) do
-            if type(value) == "string" then
-                results[filter:handle(key)] = filter:handle(value)
-            else
-                results[filter:handle(key)] = value
-            end
-        end
-    else
-        for _, value in ipairs(table.wrap(values)) do
-
-            -- string?
-            if type(value) == "string" then
-                
-                -- filter value
-                value = filter:handle(value)
-
-            -- array?
-            elseif table.is_array(value) then
-
-                -- replace values
-                local values = {}
-                for _, v in ipairs(value) do
-                    if type(v) == "string" then
-                        table.insert(values, filter:handle(v))
-                    else
-                        table.insert(values, v)
-                    end
-                end
-                value = values
-            end
-
-            -- append value
-            table.insert(results, value)
-        end
+    -- init level
+    if level == nil then
+        level = 0
     end
 
-    -- ok?
-    return results
+    -- filter keyvalues
+    if table.is_dictionary(values) then
+        local results = {}
+        for key, value in pairs(values) do
+            key = filter:handle(key)
+            if type(value) == "string" then
+                results[key] = filter:handle(value)
+            elseif type(value) == "table" and level < 1 then
+                results[key] = self:_filter(value, level + 1) -- only filter 2 levels for table values
+            else
+                results[key] = value 
+            end
+            values = results
+        end
+    else
+        -- filter value or arrays
+        values = table.wrap(values)
+        for idx = 1, table.maxn(values) do
+
+            local value = values[idx]        
+            if type(value) == "string" then
+                value = filter:handle(value)
+            elseif table.is_array(value) then
+                for i = 1, table.maxn(value) do
+                    local v = value[i]
+                    if type(v) == "string" then
+                        v = filter:handle(v)
+                    elseif type(v) == "table" and level < 1 then
+                        v = self:_filter(v, level + 1)
+                    end
+                    value[i] = v
+                end
+            end
+            values[idx] = value
+        end
+    end
+    return values
 end
 
 -- handle scope data
@@ -599,6 +595,42 @@ function interpreter:_script(script)
     return instance:script()
 end
 
+-- get builtin modules
+function interpreter._builtin_modules()
+    local builtin_modules = interpreter._BUILTIN_MODULES
+    if builtin_modules == nil then
+        builtin_modules = {}
+        local builtin_module_files = os.match(path.join(os.programdir(), "core/sandbox/modules/interpreter/*.lua"))
+        if builtin_module_files then
+            for _, builtin_module_file in ipairs(builtin_module_files) do
+
+                -- the module name
+                local module_name = path.basename(builtin_module_file)
+                assert(module_name)
+
+                -- load script
+                local script, errors = loadfile(builtin_module_file)
+                if script then
+
+                    -- load module
+                    local ok, results = utils.trycall(script)
+                    if not ok then
+                        os.raise(results)
+                    end
+
+                    -- save module
+                    builtin_modules[module_name] = results
+                else
+                    -- error
+                    os.raise(errors)
+                end
+            end
+        end
+        interpreter._BUILTIN_MODULES = builtin_modules
+    end
+    return builtin_modules
+end
+
 -- new an interpreter instance
 function interpreter.new()
 
@@ -648,32 +680,9 @@ function interpreter.new()
     instance:api_register(nil, "add_subfiles", interpreter.api_builtin_includes)
     instance:api_register(nil, "set_xmakever", interpreter.api_builtin_set_xmakever)
 
-    -- load builtin module files
-    local builtin_module_files = os.match(path.join(os.programdir(), "core/sandbox/modules/interpreter/*.lua"))
-    if builtin_module_files then
-        for _, builtin_module_file in ipairs(builtin_module_files) do
-
-            -- the module name
-            local module_name = path.basename(builtin_module_file)
-            assert(module_name)
-
-            -- load script
-            local script, errors = loadfile(builtin_module_file)
-            if script then
-
-                -- load module
-                local ok, results = xpcall(script, debug.traceback)
-                if not ok then
-                    os.raise(results)
-                end
-
-                -- register module
-                instance:api_register_builtin(module_name, results)
-            else
-                -- error
-                os.raise(errors)
-            end
-        end
+    -- register the builtin modules
+    for module_name, module in pairs(interpreter._builtin_modules()) do
+        instance:api_register_builtin(module_name, module)
     end
 
     -- ok?
@@ -695,7 +704,7 @@ function interpreter:load(file)
     -- clear first
     self:_clear()
 
-    -- init the current file 
+    -- init the current file
     self._PRIVATE._CURFILE = file
 
     -- init the root directory
@@ -915,35 +924,11 @@ function interpreter:api_register_scope(...)
     assert(self)
 
     -- define implementation
-    local implementation = function (self, scopes, scope_kind, scope_name)
+    local implementation = function (self, scopes, scope_kind, scope_name, scope_info)
 
         -- init scope for kind
         local scope_for_kind = scopes[scope_kind] or {}
         scopes[scope_kind] = scope_for_kind
-
-        -- is dictionary mode?
-        --
-        -- .e.g 
-        -- target
-        -- {
-        --    name = "tbox"
-        --    kind = "static",
-        --    files =
-        --    {
-        --        "src/*.c",
-        --        "*.cpp"
-        --    }
-        --}
-        local scope_info = nil
-        if type(scope_name) == "table" and scope_name["name"] ~= nil then
-
-            -- get the scope info
-            scope_info = scope_name
-
-            -- get the scope name from the dictionary
-            scope_name = scope_name["name"]
-        end
-
 
         -- enter the given scope
         if scope_name ~= nil then
@@ -972,9 +957,13 @@ function interpreter:api_register_scope(...)
             scopes._ROOT[scope_kind .. "@@" .. scope_name] = {}
         end
 
-        -- translate scope info 
-        if scope_info then
-            scope_info["name"] = nil
+        -- with scope info? translate it
+        --
+        -- e.g. 
+        -- option("text", {showmenu = true, default = true, description = "test option"})
+        -- target("tbox", {kind = "static", files = {"src/*.c", "*.cpp"}})
+        --
+        if scope_info and table.is_dictionary(scope_info) then
             for name, values in pairs(scope_info) do
                 local apifunc = self:api_func("set_" .. name) or self:api_func("add_" .. name) or self:api_func("on_" .. name) or self:api_func(name)
                 if apifunc then
@@ -983,6 +972,10 @@ function interpreter:api_register_scope(...)
                     os.raise("unknown %s for %s(\"%s\")", name, scope_kind, scope_name)
                 end
             end
+
+            -- enter root scope
+            scopes._CURRENT = nil
+            scopes._CURRENT_KIND = nil
         end
     end
 
@@ -1281,7 +1274,7 @@ function interpreter:api_register_set_pathes(scope_kind, ...)
             end
         end
 
-        -- save api source info, .e.g call api() in sourcefile:linenumber
+        -- save api source info, e.g. call api() in sourcefile:linenumber
         self:_save_sourceinfo_to_scope(scope, name, pathes)
     end
 
@@ -1311,7 +1304,7 @@ function interpreter:api_register_del_pathes(scope_kind, ...)
         -- save values
         scope[name] = table.join2(scope[name] or {}, pathes_deleted)
 
-        -- save api source info, .e.g call api() in sourcefile:linenumber
+        -- save api source info, e.g. call api() in sourcefile:linenumber
         self:_save_sourceinfo_to_scope(scope, name, pathes)
     end
 
@@ -1352,7 +1345,7 @@ function interpreter:api_register_add_pathes(scope_kind, ...)
             end
         end
 
-        -- save api source info, .e.g call api() in sourcefile:linenumber
+        -- save api source info, e.g. call api() in sourcefile:linenumber
         self:_save_sourceinfo_to_scope(scope, name, pathes)
     end
 
@@ -1420,7 +1413,7 @@ function interpreter:api_define(apis)
             -- get api function 
             local apiscope = nil
             local funcname = nil
-            apifunc = apifunc:split('.')
+            apifunc = apifunc:split('.', {plain = true})
             assert(apifunc)
             if #apifunc == 2 then
                 apiscope = apifunc[1]
@@ -1477,7 +1470,7 @@ function interpreter:api_builtin_set_xmakever(minver)
     end
 
     -- parse minimum version
-    local minvers = minver:split('.')
+    local minvers = minver:split('.', {plain = true})
     if not minvers or #minvers ~= 3 then
         os.raise("[nobacktrace]: set_xmakever(\"%s\"): invalid version format!", minver)
     end
@@ -1486,7 +1479,7 @@ function interpreter:api_builtin_set_xmakever(minver)
     local minvers_num = minvers[1] * 100 + minvers[2] * 10 + minvers[3]
 
     -- parse current version
-    local curvers = xmake._VERSION_SHORT:split('.')
+    local curvers = xmake._VERSION_SHORT:split('.', {plain = true})
 
     -- make current numerical version
     local curvers_num = curvers[1] * 100 + curvers[2] * 10 + curvers[3]

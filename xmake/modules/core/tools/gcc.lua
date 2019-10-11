@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -27,7 +23,8 @@ import("core.base.option")
 import("core.project.config")
 import("core.project.project")
 import("core.language.language")
-import("detect.tools.find_ccache")
+import("private.tools.ccache")
+import("private.tools.gcc.parse_deps")
 
 -- init it
 function init(self)
@@ -56,6 +53,8 @@ function init(self)
         ["-W1"] = "-Wall"
     ,   ["-W2"] = "-Wall"
     ,   ["-W3"] = "-Wall"
+    ,   ["-W4"] = "-Wextra"
+    ,   ["-Weverything"] = "-Wall -Wextra -Weffc++"
 
          -- strip
     ,   ["-s"]  = "-s"
@@ -70,12 +69,6 @@ function init(self)
         ,   ["-S"] = "-Wl,-S"
         })
     end
-
-    -- init buildmodes
-    self:set("buildmodes",
-    {
-        ["object:sources"] = false
-    })
 end
 
 -- make the strip flag
@@ -119,11 +112,12 @@ function nf_warning(self, level)
     -- the maps
     local maps = 
     {   
-        none  = "-w"
-    ,   less  = "-Wall"
-    ,   more  = "-Wall"
-    ,   all   = "-Wall"
-    ,   error = "-Werror"
+        none       = "-w"
+    ,   less       = "-Wall"
+    ,   more       = "-Wall"
+    ,   all        = "-Wall"
+    ,   everything = "-Wall -Wextra -Weffc++"
+    ,   error      = "-Werror"
     }
 
     -- make it
@@ -190,18 +184,20 @@ function nf_language(self, stdname)
     if _g.cxxmaps == nil then
         _g.cxxmaps = 
         {
-            cxx98       = "-std=c++98"
-        ,   gnuxx98     = "-std=gnu++98"
-        ,   cxx11       = "-std=c++11"
-        ,   gnuxx11     = "-std=gnu++11"
-        ,   cxx14       = "-std=c++14"
-        ,   gnuxx14     = "-std=gnu++14"
-        ,   cxx17       = "-std=c++17"
-        ,   gnuxx17     = "-std=gnu++17"
-        ,   cxx1z       = "-std=c++1z"
-        ,   gnuxx1z     = "-std=gnu++1z"
-        ,   cxx2a       = "-std=c++2a"
-        ,   gnuxx2a     = "-std=gnu++2a"
+            cxx98        = "-std=c++98"
+        ,   gnuxx98      = "-std=gnu++98"
+        ,   cxx11        = "-std=c++11"
+        ,   gnuxx11      = "-std=gnu++11"
+        ,   cxx14        = "-std=c++14"
+        ,   gnuxx14      = "-std=gnu++14"
+        ,   cxx17        = "-std=c++17"
+        ,   gnuxx17      = "-std=gnu++17"
+        ,   cxx1z        = "-std=c++1z"
+        ,   gnuxx1z      = "-std=gnu++1z"
+        ,   cxx20        = "-std=c++2a"
+        ,   gnuxx20      = "-std=gnu++2a"
+        ,   cxx2a        = "-std=c++2a"
+        ,   gnuxx2a      = "-std=gnu++2a"
         }
         local cxxmaps2 = {}
         for k, v in pairs(_g.cxxmaps) do
@@ -234,7 +230,7 @@ end
 
 -- make the includedir flag
 function nf_includedir(self, dir)
-    return "-I" .. os.args(dir)
+    return "-I" .. os.args(path.translate(dir))
 end
 
 -- make the link flag
@@ -249,11 +245,12 @@ end
 
 -- make the linkdir flag
 function nf_linkdir(self, dir)
-    return "-L" .. os.args(dir)
+    return "-L" .. os.args(path.translate(dir))
 end
 
 -- make the rpathdir flag
 function nf_rpathdir(self, dir)
+    dir = path.translate(dir)
     if self:has_flags("-Wl,-rpath=" .. dir, "ldflags") then
         return "-Wl,-rpath=" .. os.args(dir:gsub("@[%w_]+", function (name)
             local maps = {["@loader_path"] = "$ORIGIN", ["@executable_path"] = "$ORIGIN"}
@@ -271,7 +268,7 @@ end
 
 -- make the frameworkdir flag
 function nf_frameworkdir(self, frameworkdir)
-    return "-F " .. os.args(frameworkdir)
+    return "-F " .. os.args(path.translate(frameworkdir))
 end
 
 -- make the c precompiled header flag
@@ -301,7 +298,7 @@ end
 -- make the link arguments list
 function linkargv(self, objectfiles, targetkind, targetfile, flags)
 
-    -- add rpath for dylib (macho), .e.g -install_name @rpath/file.dylib
+    -- add rpath for dylib (macho), e.g. -install_name @rpath/file.dylib
     local flags_extra = {}
     if targetkind == "shared" and targetfile:endswith(".dylib") then
         table.insert(flags_extra, "-install_name")
@@ -327,72 +324,8 @@ function link(self, objectfiles, targetkind, targetfile, flags)
     os.runv(linkargv(self, objectfiles, targetkind, targetfile, flags))
 end
 
--- get compile info
---
--- e.g.
---
--- ! xxx.gch
--- . xxx.h
--- .. xxx.h
--- ... xxx.h
--- In file included from src/xxx.c:43:
--- src/main.c:2:9 warning: xczx
---   ..
---
--- . xxx.h
--- Multiple include guards may be useful for:
--- /usr/include/bits/long-double.h
--- /usr/include/bits/sigaction.h
--- /usr/include/string
---
-function _get_compile_info(outdata)
 
-    -- filter dependent header info and get compile output 
-    local results = {}
-    for _, line in ipairs(outdata:split("\n")) do
-        if not line:startswith("!") and -- ! xxx.h
-           not line:startswith(".") and -- ... xxx.h
-           not (path.is_absolute(line) and not line:find(':', 3, true)) and -- /usr/xxx/string, C:\xx\string
-           not line:find("%.%a+$") and -- src/xxx.[h|hpp|c|..]
-           not (line:endswith(':') and not line:find("%d")) then -- Multiple include guards may be useful for:
-            table.insert(results, line)
-        end
-    end
-    return results
-end
-
--- get include deps
-function _get_include_deps(outdata)
-
-    -- translate it
-    local results = {}
-    local uniques = {}
-    for _, line in ipairs(outdata:split("\n")) do
-
-        -- get includefile, e.g. '! xxx.gch' or '... xxx.h'
-        if line:startswith("!") or line:startswith(".") then
-            local includefile = line:split("%s")[2]
-            if includefile then
-
-                -- get the relative
-                includefile = path.relative(includefile, project.directory())
-
-                -- save it if belong to the project
-                if path.absolute(includefile):startswith(os.projectdir()) then
-
-                    -- insert it and filter repeat
-                    if not uniques[includefile] then
-                        table.insert(results, includefile)
-                        uniques[includefile] = true
-                    end
-                end
-            end
-        end
-    end
-    return results
-end
-
--- make the complie arguments list for the precompiled header
+-- make the compile arguments list for the precompiled header
 function _compargv1_pch(self, pcheaderfile, pcoutputfile, flags)
 
     -- remove "-include xxx.h" and "-include-pch xxx.pch"
@@ -415,11 +348,11 @@ function _compargv1_pch(self, pcheaderfile, pcoutputfile, flags)
         table.insert(pchflags, "c++-header")
     end
 
-    -- make complie arguments list
+    -- make the compile arguments list
     return self:program(), table.join("-c", pchflags, "-o", pcoutputfile, pcheaderfile)
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function _compargv1(self, sourcefile, objectfile, flags)
 
     -- precompiled header?
@@ -427,53 +360,30 @@ function _compargv1(self, sourcefile, objectfile, flags)
     if (extension:startswith(".h") or extension == ".inl") then
         return _compargv1_pch(self, sourcefile, objectfile, flags)
     end
-
-    -- get ccache
-    local ccache = nil
-    if config.get("ccache") then
-        ccache = find_ccache()
-    end
-
-    -- make argv
-    local argv = table.join("-c", flags, "-o", objectfile, sourcefile)
-
-    -- uses cache?
-    local program = self:program()
-    if ccache then
-            
-        -- parse the filename and arguments, .e.g "xcrun -sdk macosx clang"
-        if not os.isexec(program) then
-            argv = table.join(program:split("%s"), argv)
-        else 
-            table.insert(argv, 1, program)
-        end
-        return ccache, argv
-    end
-
-    -- no cache
-    return program, argv
+    return ccache.cmdargv(self:program(), table.join("-c", flags, "-o", objectfile, sourcefile))
 end
 
--- complie the source file
+-- compile the source file
 function _compile1(self, sourcefile, objectfile, dependinfo, flags)
 
     -- ensure the object directory
     os.mkdir(path.directory(objectfile))
 
     -- compile it
-    local outdata, errdata = try
+    local depfile = dependinfo and os.tmpfile() or nil
+    try
     {
         function ()
 
-            -- support -H? some old gcc does not support it at same time
-            if _g._HAS_H == nil then
-                _g._HAS_H = self:has_flags("-H", "cxflags")
+            -- support `-MMD -MF depfile.d`? some old gcc does not support it at same time
+            if depfile and _g._HAS_MMD_MF == nil then
+                _g._HAS_MMD_MF = self:has_flags({"-MMD", "-MF", os.nuldev()}, "cxflags", { flagskey = "-MMD -MF" }) or false
             end
 
             -- generate includes file
             local compflags = flags
-            if dependinfo and _g._HAS_H then
-                compflags = table.join(flags, "-H")
+            if depfile and _g._HAS_MMD_MF then
+                compflags = table.join(flags, "-MMD", "-MF", depfile)
             end
 
             -- do compile
@@ -487,7 +397,7 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
                 os.tryrm(objectfile)
 
                 -- parse and strip errors
-                local lines = _get_compile_info(errors)
+                local lines = errors and tostring(errors):split('\n', {plain = true}) or {}
                 if not option.get("verbose") then
 
                     -- find the start line of error
@@ -512,28 +422,32 @@ function _compile1(self, sourcefile, objectfile, dependinfo, flags)
         finally
         {
             function (ok, outdata, errdata)
-
                 -- show warnings?
                 if ok and errdata and #errdata > 0 and (option.get("diagnosis") or option.get("warning")) then
-                    local lines = _get_compile_info(errdata)
+                    local lines = errdata:split('\n', {plain = true})
                     if #lines > 0 then
                         local warnings = table.concat(table.slice(lines, 1, ifelse(#lines > 8, 8, #lines)), "\n")
                         cprint("${color.warning}%s", warnings)
                     end
                 end
+
+                -- generate the dependent includes
+                if depfile and os.isfile(depfile) then
+                    if dependinfo and self:kind() ~= "as" then
+                        local files = dependinfo.files or {}
+                        table.join2(files, parse_deps(depfile))
+                        dependinfo.files = table.unique(files)
+                    end
+
+                    -- remove the temporary dependent file
+                    os.tryrm(depfile)
+                end
             end
         }
     }
-
-    -- generate the dependent includes
-    local depdata = errdata
-    if dependinfo and self:kind() ~= "as" and depdata then
-        dependinfo.files = dependinfo.files or {}
-        table.join2(dependinfo.files, _get_include_deps(depdata))
-    end
 end
 
--- make the complie arguments list
+-- make the compile arguments list
 function compargv(self, sourcefiles, objectfile, flags)
 
     -- only support single source file now
@@ -543,7 +457,7 @@ function compargv(self, sourcefiles, objectfile, flags)
     return _compargv1(self, sourcefiles, objectfile, flags)
 end
 
--- complie the source file
+-- compile the source file
 function compile(self, sourcefiles, objectfile, dependinfo, flags)
 
     -- only support single source file now

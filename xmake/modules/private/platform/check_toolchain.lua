@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -27,7 +23,7 @@ import("core.base.option")
 import("lib.detect.find_tool")
 
 -- check the given tool
-function _check_tool(config, toolkind, description, name, cross, check)
+function _check_tool(config, toolkind, description, name, cross, pathes, check)
 
     -- get the program 
     local program = config.get(toolkind)
@@ -42,7 +38,7 @@ function _check_tool(config, toolkind, description, name, cross, check)
         -- attempt to check it 
         local toolname = nil
         if not program then
-            local tool = find_tool(name, {program = (cross or "") .. name, pathes = config.get("bin"), check = check})
+            local tool = find_tool(name, {program = (cross or "") .. name, pathes = pathes or config.get("bin"), check = check})
             if tool then
                 program = tool.program
                 toolname = tool.name
@@ -78,7 +74,7 @@ function main(config, name, toolchain)
                 break
             end
         else
-            if _check_tool(config, name, toolchain.description, toolinfo.name, toolinfo.cross, toolinfo.check) then
+            if _check_tool(config, name, toolchain.description, toolinfo.name, toolinfo.cross, toolinfo.pathes, toolinfo.check) then
                 break
             end
         end

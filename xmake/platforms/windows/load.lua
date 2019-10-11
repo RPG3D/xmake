@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -39,16 +35,4 @@ function main(platform)
     platform:add("dcflags", dc_archs[arch])
     platform:add("dc-shflags", dc_archs[arch])
     platform:add("dc-ldflags", dc_archs[arch])
-
-    -- init flags for cuda
-    local cu_archs = { x86 = "-m32 -Xcompiler -m32", x64 = "-m64 -Xcompiler -m64" }
-    platform:add("cuflags", cu_archs[arch] or "")
-    platform:add("cu-shflags", cu_archs[arch] or "")
-    platform:add("cu-ldflags", cu_archs[arch] or "")
-    local cuda_dir = config.get("cuda")
-    if cuda_dir then
-        platform:add("cuflags", "-I" .. os.args(path.join(cuda_dir, "include")))
-        platform:add("cu-ldflags", "-L" .. os.args(path.join(cuda_dir, "lib")))
-        platform:add("cu-shflags", "-L" .. os.args(path.join(cuda_dir, "lib")))
-    end
 end

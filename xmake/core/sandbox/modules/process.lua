@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -29,10 +25,33 @@ local raise     = require("sandbox/modules/raise")
 local vformat   = require("sandbox/modules/vformat")
 
 -- define module
-local sandbox_process = sandbox_process or {}
+local sandbox_process            = sandbox_process or {}
+local sandbox_process_subprocess = sandbox_process_subprocess or {}
+sandbox_process._subprocess = sandbox_process._subprocess or process._subprocess
+
+-- wait subprocess
+function sandbox_process_subprocess.wait(proc, timeout)
+    local ok, status, errors = proc:_wait(timeout)
+    if errors then
+        raise(errors)
+    end
+    return ok, status
+end
+
+-- close subprocess
+function sandbox_process_subprocess.close(proc)
+    local ok, errors = proc:_close()
+    if not ok then
+        raise(errors)
+    end
+end
 
 -- open process
-function sandbox_process.open(command, outfile, errfile) 
+---
+-- @param command   the command
+-- @param opt       the arguments option, {outpath = "", errpath = "", envs = {"PATH=xxx", "XXX=yyy"}
+-- 
+function sandbox_process.open(command, opt) 
 
     -- check
     assert(command)
@@ -40,28 +59,33 @@ function sandbox_process.open(command, outfile, errfile)
     -- format command first
     command = vformat(command)
 
-    -- format output file if exists
-    if outfile then
-        outfile = vformat(outfile)
-    end
-
-    -- format error file if exists
-    if errfile then
-        errfile = vformat(errfile)
-    end
-
     -- open process
-    local proc = process.open(command, outfile, errfile)
+    local proc, errors = process.open(command, opt)
     if not proc then
-        raise("open process(%s) failed!", command)
+        raise(errors)
     end
 
-    -- ok
+    -- hook subprocess interfaces
+    local hooked = {}
+    for name, func in pairs(sandbox_process_subprocess) do
+        if not name:startswith("_") and type(func) == "function" then
+            hooked["_" .. name] = proc["_" .. name] or proc[name]
+            hooked[name] = func
+        end
+    end
+    for name, func in pairs(hooked) do
+        proc[name] = func
+    end
     return proc
 end
 
 -- open process with arguments
-function sandbox_process.openv(filename, argv, outfile, errfile) 
+--
+-- @param filename  the command/file name
+-- @param argv      the command arguments
+-- @param opt       the arguments option, {outpath = "", errpath = "", envs = {"PATH=xxx", "XXX=yyy"}
+-- 
+function sandbox_process.openv(filename, argv, opt) 
 
     -- check
     assert(argv)
@@ -69,50 +93,24 @@ function sandbox_process.openv(filename, argv, outfile, errfile)
     -- format filename first
     filename = vformat(filename)
 
-    -- format output file if exists
-    if outfile then
-        outfile = vformat(outfile)
-    end
-
-    -- format error file if exists
-    if errfile then
-        errfile = vformat(errfile)
-    end
-
     -- open process
-    local proc = process.openv(filename, argv, outfile, errfile)
+    local proc, errors = process.openv(filename, argv, opt)
     if not proc then
-        raise("openv process(%s, %s) failed!", filename, table.concat(argv, " "))
+        raise(errors)
     end
 
-    -- ok
+    -- hook subprocess interfaces
+    local hooked = {}
+    for name, func in pairs(sandbox_process_subprocess) do
+        if not name:startswith("_") and type(func) == "function" then
+            hooked["_" .. name] = proc["_" .. name] or proc[name]
+            hooked[name] = func
+        end
+    end
+    for name, func in pairs(hooked) do
+        proc[name] = func
+    end
     return proc
-end
-
--- close process
-function sandbox_process.close(proc)
-
-    -- check
-    assert(proc)
-
-    -- close it
-    process.close(proc)
-end
-
--- wait process
-function sandbox_process.wait(proc, timeout)
-
-    -- check
-    assert(proc)
-
-    -- wait it
-    local ok, status = process.wait(proc, timeout)
-    if ok < 0 then
-        raise("wait process failed(%d)", ok)
-    end
-
-    -- timeout or finished
-    return ok, status
 end
 
 -- wait processes

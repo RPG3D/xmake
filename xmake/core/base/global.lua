@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -58,7 +54,7 @@ end
 --
 -- @param name  the name
 -- @param value the value
--- @param opt   the argument options, .e.g {readonly = false, force = false}
+-- @param opt   the argument options, e.g. {readonly = false, force = false}
 --
 function global.set(name, value, opt)
 
@@ -97,10 +93,11 @@ end
 
 -- get the global configure directory
 function global.directory()
-    if global._ROOTDIR == nil then
-        global._ROOTDIR = os.getenv("XMAKE_GLOBALDIR") or path.translate("~/.xmake")
+    if global._DIRECTORY == nil then
+        local rootdir = os.getenv("XMAKE_GLOBALDIR") or path.translate("~")
+        global._DIRECTORY = path.join(rootdir, ".xmake")
     end
-    return global._ROOTDIR
+    return global._DIRECTORY
 end
 
 -- load the global configuration

@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -25,12 +21,6 @@
 -- define module
 local deprecated = deprecated or {}
 
--- load modules
-local utils     = require("base/utils")
-local table     = require("base/table")
-local string    = require("base/string")
-local option    = require("base/option")
-
 -- add deprecated entry
 function deprecated.add(newformat, oldformat, ...)
 
@@ -48,6 +38,10 @@ end
 -- dump all deprecated entries
 function deprecated.dump()
 
+    -- lazy load modules to avoid loop
+    local utils     = require("base/utils")
+    local option    = require("base/option")
+
     -- dump one or more ..
     local index = 0
     deprecated._ENTRIES = deprecated._ENTRIES or {}
@@ -57,16 +51,17 @@ function deprecated.dump()
         if index == 0 then
             print("")
         end
-        if new then
-            utils.cprint("${bright color.warning}deprecated: ${clear}please uses %s instead of %s", new, old)
-        else
-            utils.cprint("${bright color.warning}deprecated: ${clear}please remove %s", old)
-        end
 
         -- show more?
-        if not option.get("verbose") then
-            utils.cprint("${bright color.warning}deprecated: ${clear}add -v for getting more ..")
+        if not option.get("verbose") and index > 0 then
+            utils.cprint("${bright color.warning}deprecated:${clear} add -v for getting more ..")
             break
+        end
+
+        if new then
+            utils.cprint("${bright color.warning}deprecated:${clear} please uses %s instead of %s", new, old)
+        else
+            utils.cprint("${bright color.warning}deprecated:${clear} please remove %s", old)
         end
         index = index + 1
     end

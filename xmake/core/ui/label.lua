@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -87,7 +83,7 @@ function label:textattr()
     return self:attr("textattr")
 end
 
--- set text attribute, .e.g textattr_set("yellow onblue bold")
+-- set text attribute, e.g. textattr_set("yellow onblue bold")
 function label:textattr_set(attr)
     return self:attr_set("textattr", attr)
 end
@@ -114,7 +110,7 @@ function label:textattr_val()
     end
 
     -- update the cache
-    value = curses.calc_attr(textattr:split("%s+"))
+    value = curses.calc_attr(textattr:split("%s"))
     self._TEXTATTR[textattr] = value
     return value
 end
@@ -127,7 +123,7 @@ function label:splitext(text, width)
 
     -- split text first
     local result = {}
-    local lines = text:split('\n', true)
+    local lines = text:split('\n', {strict = true})
     for idx = 1, #lines do
         local line = lines[idx]
         while #line > width do

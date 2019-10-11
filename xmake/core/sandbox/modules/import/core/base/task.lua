@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -42,8 +38,8 @@ function sandbox_core_base_task.run(taskname, options, ...)
     options = table.wrap(options)
 
     -- inherit some parent options
-    for _, name in ipairs({"file", "project", "diagnosis", "verbose", "quiet", "yes", "root", "profile"}) do
-        if not options[name] and option.get(name) then
+    for _, name in ipairs({"file", "project", "diagnosis", "verbose", "quiet", "yes", "confirm", "root"}) do
+        if options[name] == nil and option.get(name) ~= nil then
             options[name] = option.get(name)
         end
     end
@@ -58,7 +54,7 @@ function sandbox_core_base_task.run(taskname, options, ...)
 
     -- get task instance
     local taskname = option.taskname() or "build"
-    local taskinst = project.task(taskname) or task.task(taskname) 
+    local taskinst = project.task(taskname) or task.task(taskname)
     if not taskinst then
         raise("do unknown task(%s)!", taskname)
     end
@@ -71,6 +67,13 @@ function sandbox_core_base_task.run(taskname, options, ...)
 
     -- restore the previous option context
     option.restore()
+end
+
+
+function sandbox_core_base_task.names()
+    local default_tasks = table.keys(task.tasks())
+    local project_tasks = table.keys(project.tasks())
+    return table.join(default_tasks, project_tasks)
 end
 
 -- return module

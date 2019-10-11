@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -61,6 +57,20 @@ function sandbox_core_base_option.defaults()
 end
 
 -- parse arguments with the given options
+function sandbox_core_base_option.raw_parse(argv, options)
+
+    -- check
+    assert(argv and options)
+
+    -- parse it
+    local results, errors = option.parse(argv, options)
+    if not results then
+        raise(errors)
+    end
+    return results
+end
+
+-- parse arguments with the given options
 function sandbox_core_base_option.parse(argv, options, ...)
 
     -- check
@@ -71,17 +81,21 @@ function sandbox_core_base_option.parse(argv, options, ...)
     table.insert(options, 2, {'h', "help",      "k",  nil, "Print this help message and exit." })
     table.insert(options, 3, {})
 
+    -- show help
+    local descriptions = {...}
+    local function show_help()
+        for _, description in ipairs(descriptions) do
+            print(description)
+        end
+        option.show_options(options)
+    end
+
     -- parse it
     local results, errors = option.parse(argv, options)
     if not results then
 
-        -- show descriptions
-        for _, description in ipairs({...}) do
-            print(description)
-        end
-
-        -- show options
-        option.show_options(options)
+        -- show help
+        show_help()
 
         -- raise errors
         raise(errors)
@@ -90,16 +104,13 @@ function sandbox_core_base_option.parse(argv, options, ...)
     -- help?
     if results.help then
 
-        -- show descriptions
-        for _, description in ipairs({...}) do
-            print(description)
-        end
-
-        -- show options
-        option.show_options(options)
+        -- show help
+        show_help()
 
         -- exit
         raise()
+    else
+        results.help = show_help
     end
 
     -- ok

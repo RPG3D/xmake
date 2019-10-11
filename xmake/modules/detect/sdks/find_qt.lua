@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -50,9 +46,19 @@ function _find_sdkdir(sdkdir, sdkver)
     elseif is_plat("mingw") then
         table.insert(subdirs, path.join(sdkver or "*", is_arch("x86_64") and "mingw*_64" or "mingw*_32", "bin"))
     elseif is_plat("android") then
-        table.insert(subdirs, path.join(sdkver or "*", "android_*", "bin"))
+        local subdir = "android_*"
+        if is_arch("arm64-v8a") then
+            subdir = "android_arm64_v8a"
+        elseif is_arch("armv7-a") then
+            subdir = "android_armv7"
+        elseif is_arch("i386") then
+            subdir = "android_x86"
+        end
+        table.insert(subdirs, path.join(sdkver or "*", subdir, "bin"))
     end
     table.insert(subdirs, path.join(sdkver or "*", "*", "bin"))
+    table.insert(subdirs, path.join("*", "bin"))
+    table.insert(subdirs, "bin")
 
     -- init the search directories
     local pathes = {}
@@ -81,7 +87,7 @@ function _find_sdkdir(sdkdir, sdkver)
             end)
         end
 
-        -- add root logical drive pates, .e.g C:/Qt/Qtx.x.x, D:/Qtx.x.x ..
+        -- add root logical drive pates, e.g. C:/Qt/Qtx.x.x, D:/Qtx.x.x ..
         for idx, drive in ipairs(winos.logical_drives()) do
             if idx < 5 then
                 table.insert(pathes, path.join(drive, "Qt", "Qt*"))
@@ -131,9 +137,9 @@ end
 -- find qt sdk toolchains
 --
 -- @param sdkdir    the qt sdk directory
--- @param opt       the argument options, .e.g {verbose = true, force = false, version = "5.9.1"} 
+-- @param opt       the argument options, e.g. {verbose = true, force = false, version = "5.9.1"} 
 --
--- @return          the qt sdk toolchains. .e.g {sdkver = ..., sdkdir = ..., bindir = .., linkdirs = ..., includedirs = ..., .. }
+-- @return          the qt sdk toolchains. e.g. {sdkver = ..., sdkdir = ..., bindir = .., linkdirs = ..., includedirs = ..., .. }
 --
 -- @code 
 --
@@ -147,9 +153,9 @@ function main(sdkdir, opt)
     opt = opt or {}
 
     -- attempt to load cache first
-    local key = "detect.sdks.find_qt." .. (sdkdir or "")
+    local key = "detect.sdks.find_qt"
     local cacheinfo = cache.load(key)
-    if not opt.force and cacheinfo.qt then
+    if not opt.force and cacheinfo.qt and cacheinfo.qt.sdkdir and os.isdir(cacheinfo.qt.sdkdir) then
         return cacheinfo.qt
     end
        

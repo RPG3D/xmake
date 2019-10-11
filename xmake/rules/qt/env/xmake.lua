@@ -1,12 +1,8 @@
 --!A cross-platform build utility based on Lua
 --
--- Licensed to the Apache Software Foundation (ASF) under one
--- or more contributor license agreements.  See the NOTICE file
--- distributed with this work for additional information
--- regarding copyright ownership.  The ASF licenses this file
--- to you under the Apache License, Version 2.0 (the
--- "License"); you may not use this file except in compliance
--- with the License.  You may obtain a copy of the License at
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
 --     http://www.apache.org/licenses/LICENSE-2.0
 --
@@ -27,25 +23,21 @@ rule("qt.env")
 
     -- before load
     before_load(function (target)
+        
+        -- imports
         import("detect.sdks.find_qt")
-        if not target:data("qt") then
-            target:data_set("qt", assert(find_qt(nil, {verbose = true}), "Qt SDK not found!"))
-        end
-    end)
 
-    -- before run
-    before_run(function (target)
+        -- find qt sdk
         local qt = target:data("qt")
-        if qt and (is_plat("windows") or (is_plat("mingw") and is_host("windows"))) then
-            os.addenv("PATH", qt.bindir)
+        if not qt then
+            qt = assert(find_qt(nil, {verbose = true}), "Qt SDK not found!")
+            target:data_set("qt", qt)
+        end
+        if is_plat("windows") or (is_plat("mingw") and is_host("windows")) then
+            target:add("runenvs", "PATH", qt.bindir)
+            target:set("runenv", "QML2_IMPORT_PATH", path.join(qt.sdkdir, "qml"))
+            target:set("runenv", "QML_IMPORT_TRACE", "1")
         end
     end)
 
-    -- clean files
-    after_clean(function (target)
-        for _, file in ipairs(target:data("qt.cleanfiles")) do
-            os.rm(file)
-        end
-        target:data_set("qt.cleanfiles", nil)
-    end)
 
